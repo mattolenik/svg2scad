@@ -1,70 +1,39 @@
 package main
 
 import (
-	"encoding/xml"
 	"flag"
 	"fmt"
-	"io"
-	"log"
 	"os"
+
+	"github.com/mattolenik/svg2scad/svg"
 )
 
 func main() {
 	if err := mainE(); err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+		os.Exit(1)
 	}
 }
 
 func mainE() error {
-	inFile := flag.String("in", "", "input .svg file")
-	outFile := flag.String("out", "", "output .scad file")
+	outDir := flag.String("out", "./curves", "output directory for .scad files")
+	//watch := flag.Bool("watch", false, "watch for changes to the .svg files and refresh .scad files automatically")
 	flag.Parse()
 
-	if *inFile == "" {
-		fmt.Println("Please provide an input .svg file using the -in flag")
-		return nil
+	svgFiles := flag.Args()
+	fmt.Println(*outDir)
+	fmt.Println(svgFiles)
+
+	if len(svgFiles) == 0 {
+		return fmt.Errorf("please provide one or more .svg files to convert")
+	}
+	for _, file := range svgFiles {
+		svg, err := svg.ReadSVGFromFile(file)
+		if err != nil {
+			return fmt.Errorf("the SVG file %q could not be read: %w", file, err)
+		}
+		fmt.Println(svg)
 	}
 
-	if *outFile == "" {
-		fmt.Println("Please provide an output .scad file using the -out flag")
-		return nil
-	}
 	return nil
-}
-
-func readSVGFromFile(path string) (*SVG, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	svg, err := readSVG(file)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read SVG: %w", err)
-	}
-
-	return svg, nil
-}
-
-func readSVG(r io.Reader) (*SVG, error) {
-	var svg SVG
-	err := xml.NewDecoder(r).Decode(&svg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode SVG: %w", err)
-	}
-	return &svg, nil
-}
-
-type SVG struct {
-	XMLName xml.Name `xml:"svg"`
-	Version string   `xml:"version,attr"`
-	Width   string   `xml:"width,attr"`
-	Height  string   `xml:"height,attr"`
-	Path    []Path   `xml:"path"`
-}
-
-type Path struct {
-	ID string `xml:"id,attr"`
-	D  string `xml:"d,attr"`
 }
