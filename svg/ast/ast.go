@@ -1,8 +1,8 @@
 package ast
 
 type Coord struct {
-	X any
-	Y any
+	X float64
+	Y float64
 }
 
 type MoveTo struct {
@@ -10,15 +10,11 @@ type MoveTo struct {
 }
 
 type LineTo struct {
-	Coord any
+	Coord *Coord
 }
 
-type CubicCoords struct {
-	C1, C2, C3 any
-}
-
-type BezierCurve struct {
-	Coords any
+type Bezier struct {
+	Points []*Coord
 }
 
 type ClosePath struct{}

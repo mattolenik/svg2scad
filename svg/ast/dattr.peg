@@ -23,16 +23,15 @@ MoveV <- v _ val:Number {
 
 
 LineTo <- l _ coord:Coord {
-    return &LineTo{Coord: coord}, nil
+    return &LineTo{Coord: coord.(*Coord)}, nil
 }
 
 ClosePath <- z {
     return &ClosePath{}, nil
 }
 
-CubicBezier <- c _ coords:CubicCoords {
-    fmt.Println(reflect.TypeOf(coords))
-    return &BezierCurve{Coords: coords}, nil
+CubicBezier <- c _ c1:Coord _ c2:Coord _ c3:Coord {
+    return &Bezier{Points: []*Coord{c1.(*Coord), c2.(*Coord), c3.(*Coord)}}, nil
 }
 
 Number <- val:number {
@@ -40,12 +39,9 @@ Number <- val:number {
 }
 
 Coord <- x:Number _ ','? _ y:Number {
-    return &Coord{X:x, Y:y}, nil
+    return &Coord{X:x.(float64), Y:y.(float64)}, nil
 }
 
-CubicCoords <- c1:Coord _ c2:Coord _ c3:Coord {
-    return &CubicCoords{C1:c1, C2:c2, C3:c3}, nil
-}
 
 number <- '-'? digit+ ('.' digit+)?
 
