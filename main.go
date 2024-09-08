@@ -9,6 +9,7 @@ import (
 	"github.com/k0kubun/pp/v3"
 	"github.com/mattolenik/svg2scad/log"
 	"github.com/mattolenik/svg2scad/svg"
+	"github.com/mattolenik/svg2scad/svg/ast"
 )
 
 func main() {
@@ -16,7 +17,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		os.Exit(1)
 	}
-	pp.Print("")
 }
 
 func mainE() error {
@@ -55,6 +55,12 @@ func convert(svg *svg.SVG, outDir string) error {
 	file, err := os.Create(outPath)
 	if err != nil {
 		return fmt.Errorf("couldn't write OpenSCAD file %q: %w", file.Name(), err)
+	}
+	defer file.Close()
+	for _, path := range svg.Paths {
+		tree, err := ast.Parse(file.Name(), []byte(path.D))
+		pp.Println(path.D)
+		pp.Println(tree, err)
 	}
 	return nil
 }

@@ -1,15 +1,65 @@
-Ident <- val:Char+ {
-    return string(c.text), nil
+{
+package ast
 }
 
-Char "unicode char" <- [\x2D\x5F\x30-\x39\x41-\x5A\x61-\x7A\xA1-\u10FFFF]
+CommandSequence <- Command* 
 
-Int <- '-'? DecimalDigit+ {
-    return strconv.Atoi(string(c.text))
+Command <- _ val:(MoveTo / MoveH / MoveV / LineTo / CubicBezier / ClosePath) {
+    return val, nil
 }
 
-DecimalDigit <- [0-9]
+MoveTo <- m _ coord:Coord {
+    return &MoveTo{Coord: coord.(*Coord)}, nil
+}
+
+MoveH <- h _ val:Number {
+    return &Coord{X: val.(float64), Y: 0}, nil
+}
+
+MoveV <- v _ val:Number {
+    return &Coord{X: 0, Y: val.(float64)}, nil
+}
+
+
+LineTo <- l _ coord:Coord {
+    return &LineTo{Coord: coord.(*Coord)}, nil
+}
+
+ClosePath <- z {
+    return &ClosePath{}, nil
+}
+
+CubicBezier <- c _ coords:CubicCoords {
+    return &BezierCurve{Coords: coords.(*CubicCoords)}, nil
+}
+
+Number <- val:number {
+    return strconv.ParseFloat(string(c.text), 10)
+}
+
+Coord <- x:Number _ y:Number {
+    return &Coord{X:x.(float64), Y:y.(float64)}, nil
+}
+
+CoordList <- (Coord _)+
+
+CubicCoords <- c1:Coord _comma c2:Coord _comma c3:Coord {
+    return &CubicCoords{C1:c1.(*Coord), C2:c2.(*Coord), C3:c3.(*Coord) }, nil
+}
+
+number <- '-'? digit* ('.' digit*)?
+
+m <- 'M' / 'm'
+l <- 'L' / 'l'
+c <- 'C' / 'c'
+z <- 'Z' / 'z'
+h <- 'H' / 'h'
+v <- 'V' / 'v'
+
+digit <- [0-9]
 
 _ "whitespace" <- [ \t\r\n]* {
     return nil, nil
 }
+
+_comma  <- _ ',' _
