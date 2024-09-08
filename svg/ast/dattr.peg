@@ -1,8 +1,13 @@
 {
 package ast
+import (
+    "github.com/teris-io/shortid"
+)
 }
 
-CommandSequence <- Command*
+CommandSequence <- cmds:Command* {
+    return &Module{Contents: cmds.([]any)}, nil
+}
 
 Command <- _ val:(MoveTo / MoveH / MoveV / LineTo / CubicBezier / ClosePath) {
     return val, nil
@@ -13,11 +18,11 @@ MoveTo <- m _ coord:Coord {
 }
 
 MoveH <- h _ val:Number {
-    return &MoveTo{Coord: []float64{val.(float64), 0}}, nil
+    return &MoveTo{Coord: [2]float64{val.(float64), 0}}, nil
 }
 
 MoveV <- v _ val:Number {
-    return &MoveTo{Coord: []float64{0, val.(float64)}}, nil
+    return &MoveTo{Coord: [2]float64{0, val.(float64)}}, nil
 }
 
 
@@ -30,7 +35,11 @@ ClosePath <- z {
 }
 
 CubicBezier <- c _ c1:Coord _ c2:Coord _ c3:Coord {
-    return &Bezier{Points: []Coord{c1.([]float64), c2.([]float64), c3.([]float64)}}, nil
+    id, err := shortid.Generate()
+    if err != nil {
+        return nil, err
+    }
+    return &Bezier{Points: []Coord{c1.([2]float64), c2.([2]float64), c3.([2]float64)}, Name: fmt.Sprintf("curve_%v", id)}, nil
 }
 
 Number <- val:number {
@@ -38,7 +47,7 @@ Number <- val:number {
 }
 
 Coord <- x:Number _ ','? _ y:Number {
-    return []float64{x.(float64), y.(float64)}, nil
+    return [2]float64{x.(float64), y.(float64)}, nil
 }
 
 

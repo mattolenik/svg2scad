@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-type Coord []float64
+type Coord [2]float64
 
 func (c Coord) String() string {
 	return fmt.Sprintf("[%v, %v]", c[0], c[1])
@@ -18,7 +18,7 @@ func (c Coords) String() string {
 	for i, s := range c {
 		strs[i] = s.String()
 	}
-	return "[" + strings.Join(strs, ",") + "]"
+	return "[" + strings.Join(strs, ", ") + "]"
 }
 
 type MoveTo struct {
@@ -31,6 +31,21 @@ type LineTo struct {
 
 type Bezier struct {
 	Points Coords
+	Name   string
+}
+
+func (b *Bezier) ToSCAD() (string, error) {
+	r := strings.NewReplacer("{varName}", b.Name, "{points}", b.Points.String())
+	return r.Replace(`{varName} = {points}; debug_bezier({varName}, N=len({varName})-1);`), nil
 }
 
 type ClosePath struct{}
+
+type Scaddable interface {
+	ToSCAD() (string, error)
+}
+
+type Module struct {
+	Name     string
+	Contents []any
+}

@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/k0kubun/pp/v3"
 	"github.com/mattolenik/svg2scad/log"
 	"github.com/mattolenik/svg2scad/svg"
 	"github.com/mattolenik/svg2scad/svg/ast"
@@ -59,8 +58,41 @@ func convert(svg *svg.SVG, outDir string) error {
 	defer file.Close()
 	for _, path := range svg.Paths {
 		tree, err := ast.Parse(file.Name(), []byte(path.D))
-		pp.Println(path.D)
-		pp.Println(tree, err)
+		if err != nil {
+			return fmt.Errorf("failed to parse path from SVG %q: %w", path, err)
+		}
+		err = walk(tree)
+		if err != nil {
+			return fmt.Errorf("failed to generate OpenSCAD code: %w", err)
+		}
+	}
+	return nil
+}
+
+func walk(node any) error {
+	switch node := node.(type) {
+	case []any:
+		for _, n := range node {
+			err := walk(n)
+			if err != nil {
+				return err
+			}
+		}
+	case ast.Scaddable:
+		scad, err := node.ToSCAD()
+		if err != nil {
+			return fmt.Errorf("failed to generate OpenSCAD code: %w", err)
+		}
+		fmt.Println(scad)
+	case *ast.Module:
+		fmt.Printf("module %s(anchor, spin, orient) {\n", node.Name)
+		for _, n := range node.Contents {
+			err := walk(n)
+			if err != nil {
+				return err
+			}
+		}
+		fmt.Printf("}\n")
 	}
 	return nil
 }
