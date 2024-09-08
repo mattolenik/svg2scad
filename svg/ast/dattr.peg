@@ -9,21 +9,20 @@ Command <- _ val:(MoveTo / MoveH / MoveV / LineTo / CubicBezier / ClosePath) {
 }
 
 MoveTo <- m _ coord:Coord {
-    fmt.Println(reflect.TypeOf(coord))
-    return &MoveTo{Coord: coord.(*Coord)}, nil
+    return &MoveTo{Coord: coord.(Coord)}, nil
 }
 
 MoveH <- h _ val:Number {
-    return &MoveTo{Coord: &Coord{X: val.(float64), Y: 0}}, nil
+    return &MoveTo{Coord: []float64{val.(float64), 0}}, nil
 }
 
 MoveV <- v _ val:Number {
-    return &MoveTo{Coord: &Coord{X: 0, Y: val.(float64)}}, nil
+    return &MoveTo{Coord: []float64{0, val.(float64)}}, nil
 }
 
 
 LineTo <- l _ coord:Coord {
-    return &LineTo{Coord: coord.(*Coord)}, nil
+    return &LineTo{Coord: coord.(Coord)}, nil
 }
 
 ClosePath <- z {
@@ -31,7 +30,7 @@ ClosePath <- z {
 }
 
 CubicBezier <- c _ c1:Coord _ c2:Coord _ c3:Coord {
-    return &Bezier{Points: []*Coord{c1.(*Coord), c2.(*Coord), c3.(*Coord)}}, nil
+    return &Bezier{Points: []Coord{c1.([]float64), c2.([]float64), c3.([]float64)}}, nil
 }
 
 Number <- val:number {
@@ -39,7 +38,7 @@ Number <- val:number {
 }
 
 Coord <- x:Number _ ','? _ y:Number {
-    return &Coord{X:x.(float64), Y:y.(float64)}, nil
+    return []float64{x.(float64), y.(float64)}, nil
 }
 
 
