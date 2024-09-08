@@ -1,0 +1,15 @@
+Ident <- val:Char+ {
+    return string(c.text), nil
+}
+
+Char "unicode char" <- [\x2D\x5F\x30-\x39\x41-\x5A\x61-\x7A\xA1-\u10FFFF]
+
+Int <- '-'? DecimalDigit+ {
+    return strconv.Atoi(string(c.text))
+}
+
+DecimalDigit <- [0-9]
+
+_ "whitespace" <- [ \t\r\n]* {
+    return nil, nil
+}

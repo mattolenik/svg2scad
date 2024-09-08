@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 type SVG struct {
-	XMLName xml.Name `xml:"svg"`
-	Version string   `xml:"version,attr"`
-	Width   string   `xml:"width,attr"`
-	Height  string   `xml:"height,attr"`
-	Path    []Path   `xml:"path"`
+	XMLName  xml.Name `xml:"svg"`
+	Version  string   `xml:"version,attr"`
+	Width    string   `xml:"width,attr"`
+	Height   string   `xml:"height,attr"`
+	Path     []Path   `xml:"path"`
+	Filename string
 }
 
 type Path struct {
@@ -31,6 +33,7 @@ func ReadSVGFromFile(path string) (*SVG, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read SVG: %w", err)
 	}
+	svg.Filename = filepath.Base(file.Name())
 
 	return svg, nil
 }

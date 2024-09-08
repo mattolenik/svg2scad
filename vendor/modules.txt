@@ -1,0 +1,51 @@
+# github.com/k0kubun/pp/v3 v3.2.0
+## explicit; go 1.17
+github.com/k0kubun/pp/v3
+# github.com/mattn/go-colorable v0.1.13
+## explicit; go 1.15
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.16
+## explicit; go 1.15
+github.com/mattn/go-isatty
+# github.com/mna/pigeon v1.2.1
+## explicit; go 1.20
+github.com/mna/pigeon
+github.com/mna/pigeon/ast
+github.com/mna/pigeon/builder
+# golang.org/x/mod v0.13.0
+## explicit; go 1.18
+golang.org/x/mod/internal/lazyregexp
+golang.org/x/mod/module
+golang.org/x/mod/semver
+# golang.org/x/sys v0.13.0
+## explicit; go 1.17
+golang.org/x/sys/execabs
+golang.org/x/sys/unix
+# golang.org/x/text v0.3.7
+## explicit; go 1.17
+golang.org/x/text/feature/plural
+golang.org/x/text/internal
+golang.org/x/text/internal/catmsg
+golang.org/x/text/internal/format
+golang.org/x/text/internal/language
+golang.org/x/text/internal/language/compact
+golang.org/x/text/internal/number
+golang.org/x/text/internal/stringset
+golang.org/x/text/internal/tag
+golang.org/x/text/language
+golang.org/x/text/message
+golang.org/x/text/message/catalog
+# golang.org/x/tools v0.14.0
+## explicit; go 1.18
+golang.org/x/tools/go/ast/astutil
+golang.org/x/tools/imports
+golang.org/x/tools/internal/event
+golang.org/x/tools/internal/event/core
+golang.org/x/tools/internal/event/keys
+golang.org/x/tools/internal/event/label
+golang.org/x/tools/internal/event/tag
+golang.org/x/tools/internal/fastwalk
+golang.org/x/tools/internal/gocommand
+golang.org/x/tools/internal/gopathwalk
+golang.org/x/tools/internal/imports
+golang.org/x/tools/internal/typeparams
