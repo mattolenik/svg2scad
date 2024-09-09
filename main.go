@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/mattolenik/svg2scad/log"
+	"github.com/mattolenik/svg2scad/scad"
 	"github.com/mattolenik/svg2scad/svg"
 	"github.com/mattolenik/svg2scad/svg/ast"
 )
@@ -58,9 +59,14 @@ func convert(svg *svg.SVG, outDir string) error {
 
 	cw := ast.NewCodeWriter(file)
 	defer cw.Flush()
-	_, err = cw.WriteLines("include <BOSL2/std.scad>", "include <BOSL2/beziers.scad>", "")
+	_, err = cw.WriteLines(scad.DefaultImports...)
 	if err != nil {
 		return fmt.Errorf("failed to write OpenSCAD file: %w", err)
+	}
+
+	modules := []string{}
+	found := func(m *ast.Module) {
+		modules = append(modules, m.Name)
 	}
 
 	for _, path := range svg.Paths {
@@ -68,19 +74,24 @@ func convert(svg *svg.SVG, outDir string) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse path from SVG %q: %w", path, err)
 		}
-		err = walk(cw, tree)
+		err = walk(cw, tree, found)
 		if err != nil {
 			return fmt.Errorf("failed to generate OpenSCAD code: %w", err)
+		}
+	}
+	for _, module := range modules {
+		if _, err := cw.WriteStrings("", fmt.Sprintf("%s();", module)); err != nil {
+			return fmt.Errorf("failed to generate OpenScad code: %w", err)
 		}
 	}
 	return nil
 }
 
-func walk(cw *ast.CodeWriter, node any) (err error) {
+func walk(cw *ast.CodeWriter, node any, foundModule func(m *ast.Module)) (err error) {
 	switch node := node.(type) {
 	case []any:
 		for _, n := range node {
-			err := walk(cw, n)
+			err := walk(cw, n, foundModule)
 			if err != nil {
 				return err
 			}
@@ -98,8 +109,8 @@ func walk(cw *ast.CodeWriter, node any) (err error) {
 		}
 
 		cw.Tab()
-		for _, n := range node.Contents {
-			if err := walk(cw, n); err != nil {
+		for _, n := range node.Children {
+			if err := walk(cw, n, foundModule); err != nil {
 				return err
 			}
 		}
@@ -108,6 +119,7 @@ func walk(cw *ast.CodeWriter, node any) (err error) {
 		if _, err = cw.WriteLines("}"); err != nil {
 			return err
 		}
+		foundModule(node)
 	}
 	return nil
 }

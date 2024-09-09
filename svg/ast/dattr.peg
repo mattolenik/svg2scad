@@ -3,13 +3,17 @@ package ast
 import (
     "github.com/teris-io/shortid"
 )
+
 var uniq = -1
+func id() int {
+    uniq++
+    return uniq
+}
 
 }
 
 CommandSequence <- cmds:Command* {
-    uniq++
-    return &Module{Contents: cmds.([]any), Name: fmt.Sprintf("path_%d", uniq)}, nil
+    return &Module{Children: cmds.([]any), Name: fmt.Sprintf("path_%d", id())}, nil
 }
 
 Command <- _ val:(MoveTo / MoveH / MoveV / LineTo / CubicBezier / ClosePath) {
@@ -38,8 +42,7 @@ ClosePath <- z {
 }
 
 CubicBezier <- c _ c1:Coord _ c2:Coord _ c3:Coord {
-    uniq++
-    return &Bezier{Points: []Coord{c1.([2]float64), c2.([2]float64), c3.([2]float64)}, Name: fmt.Sprintf("curve_%v", uniq)}, nil
+    return &Bezier{Points: []Coord{c1.([2]float64), c2.([2]float64), c3.([2]float64)}, Name: fmt.Sprintf("curve_%v", id())}, nil
 }
 
 Number <- val:number {

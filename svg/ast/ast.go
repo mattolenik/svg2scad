@@ -36,26 +36,11 @@ type Bezier struct {
 	Name   string
 }
 
-func (b *Bezier) ToSCAD(cw *CodeWriter) error {
-	_, err := cw.WriteLines(
-		fmt.Sprintf("%s = %v;", b.Name, b.Points),
-		fmt.Sprintf("debug_bezier(%s, N=len(%s)-1);", b.Name, b.Name),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to generate OpenSCAD code: %v", err)
-	}
-	return nil
-}
-
 type ClosePath struct{}
-
-type Scaddable interface {
-	ToSCAD(cw *CodeWriter) error
-}
 
 type Module struct {
 	Name     string
-	Contents []any
+	Children []any
 }
 
 type CodeWriter struct {
@@ -81,6 +66,12 @@ func (cw *CodeWriter) Tab() {
 func (cw *CodeWriter) Untab() {
 	cw.depth--
 	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
+}
+
+func (cw *CodeWriter) Indent(action func()) {
+	cw.Tab()
+	action()
+	cw.Untab()
 }
 
 func (cw *CodeWriter) WriteLines(code ...string) (int, error) {
