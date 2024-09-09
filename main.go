@@ -53,15 +53,22 @@ func convert(svg *svg.SVG, outDir string) error {
 	outPath := filepath.Join(outDir, scadFilename)
 	file, err := os.Create(outPath)
 	if err != nil {
-		return fmt.Errorf("couldn't write OpenSCAD file %q: %w", file.Name(), err)
 	}
 	defer file.Close()
+
+	cw := ast.NewCodeWriter(file)
+	defer cw.Flush()
+	_, err = cw.WriteLines("include <BOSL2/std.scad>", "include <BOSL2/beziers.scad>", "")
+	if err != nil {
+		return fmt.Errorf("failed to write OpenSCAD file: %w", err)
+	}
+
 	for _, path := range svg.Paths {
 		tree, err := ast.Parse(file.Name(), []byte(path.D))
 		if err != nil {
 			return fmt.Errorf("failed to parse path from SVG %q: %w", path, err)
 		}
-		err = walk(tree)
+		err = walk(cw, tree)
 		if err != nil {
 			return fmt.Errorf("failed to generate OpenSCAD code: %w", err)
 		}
@@ -69,30 +76,38 @@ func convert(svg *svg.SVG, outDir string) error {
 	return nil
 }
 
-func walk(node any) error {
+func walk(cw *ast.CodeWriter, node any) (err error) {
 	switch node := node.(type) {
 	case []any:
 		for _, n := range node {
-			err := walk(n)
+			err := walk(cw, n)
 			if err != nil {
 				return err
 			}
 		}
-	case ast.Scaddable:
-		scad, err := node.ToSCAD()
-		if err != nil {
-			return fmt.Errorf("failed to generate OpenSCAD code: %w", err)
+	case *ast.Bezier:
+		if _, err := cw.WriteLines(
+			fmt.Sprintf("%s = %v;", node.Name, node.Points),
+			fmt.Sprintf("debug_bezier(%s, N=len(%s)-1);", node.Name, node.Name),
+		); err != nil {
+			return err
 		}
-		fmt.Println(scad)
 	case *ast.Module:
-		fmt.Printf("module %s(anchor, spin, orient) {\n", node.Name)
+		if _, err := cw.WriteLines(fmt.Sprintf("module %s(anchor, spin, orient) {", node.Name)); err != nil {
+			return err
+		}
+
+		cw.Tab()
 		for _, n := range node.Contents {
-			err := walk(n)
-			if err != nil {
+			if err := walk(cw, n); err != nil {
 				return err
 			}
 		}
-		fmt.Printf("}\n")
+		cw.Untab()
+
+		if _, err = cw.WriteLines("}"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
