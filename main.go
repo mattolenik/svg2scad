@@ -96,6 +96,13 @@ func walk(cw *ast.CodeWriter, node any, foundModule func(m *ast.Module)) (err er
 				return err
 			}
 		}
+	// case *ast.MoveTo:
+	// 	if _, err := cw.WriteLines(
+	// 		fmt.Sprintf("translate(%v) {", node.Coord),
+	// 	); err != nil {
+	// 		return err
+	// 	}
+	// 	cw.Tab()
 	case *ast.Bezier:
 		if _, err := cw.WriteLines(
 			fmt.Sprintf("%s = %v;", node.Name, node.Points),
