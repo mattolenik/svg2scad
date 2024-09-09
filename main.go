@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 
+	"github.com/k0kubun/pp/v3"
 	"github.com/mattolenik/svg2scad/log"
 	"github.com/mattolenik/svg2scad/scad"
 	"github.com/mattolenik/svg2scad/svg"
@@ -58,11 +60,8 @@ func convert(svg *svg.SVG, outDir string) error {
 	defer file.Close()
 
 	cw := ast.NewCodeWriter(file)
-	defer cw.Flush()
-	_, err = cw.WriteLines(scad.DefaultImports...)
-	if err != nil {
-		return fmt.Errorf("failed to write OpenSCAD file: %w", err)
-	}
+	defer cw.Close()
+	cw.WriteLines(scad.DefaultImports...)
 
 	modules := []string{}
 	found := func(m *ast.Module) {
@@ -78,11 +77,10 @@ func convert(svg *svg.SVG, outDir string) error {
 		if err != nil {
 			return fmt.Errorf("failed to generate OpenSCAD code: %w", err)
 		}
+		pp.Println(tree)
 	}
 	for _, module := range modules {
-		if _, err := cw.WriteStrings("", fmt.Sprintf("%s();", module)); err != nil {
-			return fmt.Errorf("failed to generate OpenScad code: %w", err)
-		}
+		cw.WriteStrings("", fmt.Sprintf("%s();", module))
 	}
 	return nil
 }
@@ -96,37 +94,38 @@ func walk(cw *ast.CodeWriter, node any, foundModule func(m *ast.Module)) (err er
 				return err
 			}
 		}
-	// case *ast.MoveTo:
-	// 	if _, err := cw.WriteLines(
-	// 		fmt.Sprintf("translate(%v) {", node.Coord),
-	// 	); err != nil {
-	// 		return err
-	// 	}
-	// 	cw.Tab()
-	case *ast.Bezier:
-		if _, err := cw.WriteLines(
-			fmt.Sprintf("%s = %v;", node.Name, node.Points),
-			fmt.Sprintf("debug_bezier(%s, N=len(%s)-1);", node.Name, node.Name),
-		); err != nil {
-			return err
-		}
-	case *ast.Module:
-		if _, err := cw.WriteLines(fmt.Sprintf("module %s(anchor, spin, orient) {", node.Name)); err != nil {
-			return err
-		}
-
+	case *ast.MoveTo:
+		cw.WriteLines(
+			fmt.Sprintf("translate(%v) {", node.Coord))
 		cw.Tab()
-		for _, n := range node.Children {
-			if err := walk(cw, n, foundModule); err != nil {
+		for _, child := range node.Children {
+			if err := walk(cw, child, foundModule); err != nil {
 				return err
 			}
 		}
 		cw.Untab()
+		cw.WriteLines("}")
+	case *ast.Bezier:
+		cw.WriteLines(
+			fmt.Sprintf("%s = %v;", node.Name, node.Points),
+			fmt.Sprintf("debug_bezier(%s, N=len(%s)-1);", node.Name, node.Name))
+	case *ast.LineTo:
+		// TODO: line command
+	case *ast.ClosePath:
+		// TODO: close path
+	case *ast.Module:
+		cw.WriteLines(fmt.Sprintf("module %s(anchor, spin, orient) {", node.Name))
 
-		if _, err = cw.WriteLines("}"); err != nil {
+		cw.Tab()
+		if err := walk(cw, node.Children, foundModule); err != nil {
 			return err
 		}
+		cw.Untab()
+
+		cw.WriteLines("}")
 		foundModule(node)
+	default:
+		return fmt.Errorf("unsupported command: %q", reflect.TypeOf(node))
 	}
 	return nil
 }

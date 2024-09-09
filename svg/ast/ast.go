@@ -1,7 +1,7 @@
 package ast
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -24,7 +24,8 @@ func (c Coords) String() string {
 }
 
 type MoveTo struct {
-	Coord Coord
+	Coord    Coord
+	Children []any
 }
 
 type LineTo struct {
@@ -40,22 +41,26 @@ type ClosePath struct{}
 
 type Module struct {
 	Name     string
-	Children []any
+	Children any
 }
 
 type CodeWriter struct {
-	writer   *bufio.Writer
+	buf      *bytes.Buffer
+	writer   io.WriteCloser
 	depth    int
 	tabWidth int
 	tabStr   string
 }
 
-func NewCodeWriter(writer io.Writer) *CodeWriter {
-	return &CodeWriter{writer: bufio.NewWriter(writer), depth: 0, tabWidth: 4}
+func NewCodeWriter(writer io.WriteCloser) *CodeWriter {
+	return &CodeWriter{buf: &bytes.Buffer{}, writer: writer, depth: 0, tabWidth: 4}
 }
 
-func (cw *CodeWriter) Flush() error {
-	return cw.writer.Flush()
+func (cw *CodeWriter) Close() error {
+	if _, err := cw.writer.Write(cw.buf.Bytes()); err != nil {
+		return fmt.Errorf("failed to write code: %w", err)
+	}
+	return cw.writer.Close()
 }
 
 func (cw *CodeWriter) Tab() {
@@ -74,26 +79,14 @@ func (cw *CodeWriter) Indent(action func()) {
 	cw.Untab()
 }
 
-func (cw *CodeWriter) WriteLines(code ...string) (int, error) {
-	sum := 0
+func (cw *CodeWriter) WriteLines(code ...string) {
 	for _, line := range code {
-		n, err := cw.WriteStrings(cw.tabStr, line, "\n")
-		if err != nil {
-			return sum, err
-		}
-		sum += n
+		cw.WriteStrings(cw.tabStr, line, "\n")
 	}
-	return sum, nil
 }
 
-func (cw *CodeWriter) WriteStrings(strs ...string) (int, error) {
-	sum := 0
+func (cw *CodeWriter) WriteStrings(strs ...string) {
 	for _, s := range strs {
-		n, err := cw.writer.WriteString(s)
-		if err != nil {
-			return sum, err
-		}
-		sum += n
+		cw.buf.WriteString(s)
 	}
-	return sum, nil
 }

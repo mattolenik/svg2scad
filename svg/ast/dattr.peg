@@ -12,13 +12,27 @@ func id() int {
 
 }
 
-CommandSequence <- cmds:Command* {
-    return &Module{Children: cmds.([]any), Name: fmt.Sprintf("path_%d", id())}, nil
+Module <- _ seq:Seq {
+    return &Module{Children: seq, Name: fmt.Sprintf("path_%v", id())}, nil
 }
 
-Command <- _ val:(MoveTo / MoveH / MoveV / LineTo / CubicBezier / ClosePath) {
+Seq <- _ seq:(MoveSequence / Command) {
+    return seq, nil
+}
+
+MoveSequence <- _ move:Move _ rest:Seq* {
+    if mv, ok := move.(*MoveTo); ok {
+        mv.Children = rest.([]any)
+    return mv, nil
+    }
+    return nil, nil
+}
+
+Command <- _ val:(LineTo / CubicBezier / ClosePath) {
     return val, nil
 }
+
+Move <- MoveTo / MoveH / MoveV
 
 MoveTo <- m _ coord:Coord {
     return &MoveTo{Coord: coord.([2]float64)}, nil
@@ -31,7 +45,6 @@ MoveH <- h _ val:Number {
 MoveV <- v _ val:Number {
     return &MoveTo{Coord: [2]float64{0, val.(float64)}}, nil
 }
-
 
 LineTo <- l _ coord:Coord {
     return &LineTo{Coord: coord.([2]float64)}, nil
