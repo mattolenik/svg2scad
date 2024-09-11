@@ -111,7 +111,7 @@ func walk(cw *ast.CodeWriter, node any, foundModule func(m *ast.Module)) (err er
 	case *ast.Bezier:
 		cw.WriteLines(
 			fmt.Sprintf("%s = %v;", node.Name, node.Points),
-			fmt.Sprintf("%s_curve = bezpath_curve(%s, N = len(%s) - 1);", node.Name, node.Name, node.Name),
+			fmt.Sprintf("%s_curve = bezier_curve(%s);", node.Name, node.Name),
 			// fmt.Sprintf("debug_bezier(%s, N=len(%s)-1);", node.Name, node.Name))
 			fmt.Sprintf(`stroke(%s_curve, width = 5, dots = false, dots_color = "red");`, node.Name))
 	case *ast.LineTo:
