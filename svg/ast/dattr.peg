@@ -16,7 +16,7 @@ Module <- _ seq:Seq {
     return &Module{Children: seq, Name: fmt.Sprintf("path_%v", id())}, nil
 }
 
-Seq <- _ seq:(MoveSequence / Command) {
+Seq <- _ seq:(MoveSequence / Command+) {
     return seq, nil
 }
 
