@@ -62,6 +62,7 @@ func convert(svg *svg.SVG, outDir string) error {
 	cw := ast.NewCodeWriter(file)
 	defer cw.Close()
 	cw.WriteLines(scad.DefaultImports...)
+	cw.WriteLines("")
 
 	modules := []string{}
 	found := func(m *ast.Module) {
@@ -96,7 +97,9 @@ func walk(cw *ast.CodeWriter, node any, foundModule func(m *ast.Module)) (err er
 		}
 	case *ast.MoveTo:
 		cw.WriteLines(
-			fmt.Sprintf("translate(%v) {", node.Coord))
+			fmt.Sprintf("translate(%v)", node.Coord),
+			"{",
+		)
 		cw.Tab()
 		for _, child := range node.Children {
 			if err := walk(cw, child, foundModule); err != nil {
@@ -108,15 +111,15 @@ func walk(cw *ast.CodeWriter, node any, foundModule func(m *ast.Module)) (err er
 	case *ast.Bezier:
 		cw.WriteLines(
 			fmt.Sprintf("%s = %v;", node.Name, node.Points),
-			fmt.Sprintf("%s_curve = bezpath_curve(%s, N=len(%s)-1);", node.Name, node.Name, node.Name),
+			fmt.Sprintf("%s_curve = bezpath_curve(%s, N = len(%s) - 1);", node.Name, node.Name, node.Name),
 			// fmt.Sprintf("debug_bezier(%s, N=len(%s)-1);", node.Name, node.Name))
-			fmt.Sprintf(`stroke(%s_curve, width=5, dots=false, dots_color="red");`, node.Name))
+			fmt.Sprintf(`stroke(%s_curve, width = 5, dots = false, dots_color = "red");`, node.Name))
 	case *ast.LineTo:
 		// TODO: line command
 	case *ast.ClosePath:
 		// TODO: close path
 	case *ast.Module:
-		cw.WriteLines(fmt.Sprintf("module %s(anchor, spin, orient) {", node.Name))
+		cw.WriteLines(fmt.Sprintf("module %s(anchor, spin, orient)", node.Name), "{")
 
 		cw.Tab()
 		if err := walk(cw, node.Children, foundModule); err != nil {

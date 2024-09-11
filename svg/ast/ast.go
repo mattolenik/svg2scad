@@ -10,7 +10,7 @@ import (
 type Coord [2]float64
 
 func (c Coord) String() string {
-	return fmt.Sprintf("[%v, %v]", c[0], c[1])
+	return fmt.Sprintf("[ %v, %v ]", c[0], c[1])
 }
 
 type Coords []Coord
@@ -20,7 +20,7 @@ func (c Coords) String() string {
 	for i, s := range c {
 		strs[i] = s.String()
 	}
-	return "[" + strings.Join(strs, ", ") + "]"
+	return "[ " + strings.Join(strs, ", ") + " ]"
 }
 
 type MoveTo struct {
