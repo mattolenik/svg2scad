@@ -48,11 +48,11 @@ func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, filename string) error {
 	}
 
 	for _, path := range svg.Paths {
-		tree, err := ast.Parse(file.Name(), []byte(path.D))
+		tree, err := ast.Parse(path.ID, []byte(path.D))
 		if err != nil {
 			return fmt.Errorf("failed to parse path from SVG %q: %w", path, err)
 		}
-		err = sw.walk(cw, tree, found, &ast.Coord{0, 0})
+		err = sw.walk(cw, tree, found, &ast.Coord{0, 0}, path.ID)
 		if err != nil {
 			return fmt.Errorf("failed to generate OpenSCAD code: %w", err)
 		}
@@ -64,11 +64,11 @@ func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, filename string) error {
 	return nil
 }
 
-func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, foundModule func(m *ast.Module), lastPoint *ast.Coord) (err error) {
+func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, foundModule func(m *ast.Module), lastPoint *ast.Coord, pathID string) (err error) {
 	switch node := node.(type) {
 	case []any:
 		for _, n := range node {
-			err := sw.walk(cw, n, foundModule, lastPoint)
+			err := sw.walk(cw, n, foundModule, lastPoint, pathID)
 			if err != nil {
 				return err
 			}
@@ -78,7 +78,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, foundModule func(m *ast
 		cw.WriteLines(fmt.Sprintf("let(cursor = %v)", node.Coord))
 		cw.OpenBrace()
 		for _, child := range node.Children {
-			if err := sw.walk(cw, child, foundModule, lastPoint); err != nil {
+			if err := sw.walk(cw, child, foundModule, lastPoint, pathID); err != nil {
 				return err
 			}
 		}
@@ -95,10 +95,13 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, foundModule func(m *ast
 	case *ast.ClosePath:
 		// TODO: close path
 	case *ast.Module:
+		if pathID != "" {
+			node.Name = pathID
+		}
 		cw.WriteLinef("module %s(anchor, spin, orient)", node.Name)
 
 		cw.OpenBrace()
-		if err := sw.walk(cw, node.Children, foundModule, lastPoint); err != nil {
+		if err := sw.walk(cw, node.Children, foundModule, lastPoint, pathID); err != nil {
 			return err
 		}
 		cw.CloseBrace()
