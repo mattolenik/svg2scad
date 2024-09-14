@@ -73,10 +73,24 @@ func (cw *CodeWriter) Untab() {
 	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
 }
 
+func (cw *CodeWriter) OpenBrace() {
+	cw.WriteLines("{")
+	cw.Tab()
+}
+
+func (cw *CodeWriter) CloseBrace() {
+	cw.Untab()
+	cw.WriteLines("}")
+}
+
 func (cw *CodeWriter) Indent(action func()) {
 	cw.Tab()
 	action()
 	cw.Untab()
+}
+
+func (cw *CodeWriter) WriteLinef(format string, args ...any) {
+	cw.WriteLines(fmt.Sprintf(format, args...))
 }
 
 func (cw *CodeWriter) WriteLines(code ...string) {
@@ -89,4 +103,12 @@ func (cw *CodeWriter) WriteStrings(strs ...string) {
 	for _, s := range strs {
 		cw.buf.WriteString(s)
 	}
+}
+
+func (cw *CodeWriter) BlankLine() {
+	cw.BlankLines(1)
+}
+
+func (cw *CodeWriter) BlankLines(num int) {
+	cw.WriteStrings(strings.Repeat("\n", num))
 }

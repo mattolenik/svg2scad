@@ -16,17 +16,19 @@ Module <- _ seq:Seq {
     return &Module{Children: seq, Name: fmt.Sprintf("path_%v", id())}, nil
 }
 
-Seq <- _ seq:(MoveSequence / Command+) {
+Seq <- _ seq:(MoveSequence / CommandSequence) {
     return seq, nil
 }
 
 MoveSequence <- _ move:Move _ rest:Seq* {
     if mv, ok := move.(*MoveTo); ok {
         mv.Children = rest.([]any)
-    return mv, nil
+        return mv, nil
     }
     return nil, nil
 }
+
+CommandSequence <- Command+
 
 Command <- _ val:(LineTo / CubicBezier / ClosePath) {
     return val, nil
@@ -35,19 +37,19 @@ Command <- _ val:(LineTo / CubicBezier / ClosePath) {
 Move <- MoveTo / MoveH / MoveV
 
 MoveTo <- m _ coord:Coord {
-    return &MoveTo{Coord: coord.([2]float64)}, nil
+    return &MoveTo{Coord: coord.( Coord)}, nil
 }
 
 MoveH <- h _ val:Number {
-    return &MoveTo{Coord: [2]float64{val.(float64), 0}}, nil
+    return &MoveTo{Coord:  Coord{val.(float64), 0}}, nil
 }
 
 MoveV <- v _ val:Number {
-    return &MoveTo{Coord: [2]float64{0, val.(float64)}}, nil
+    return &MoveTo{Coord:  Coord{0, val.(float64)}}, nil
 }
 
 LineTo <- l _ coord:Coord {
-    return &LineTo{Coord: coord.([2]float64)}, nil
+    return &LineTo{Coord: coord.( Coord)}, nil
 }
 
 ClosePath <- z {
@@ -55,11 +57,11 @@ ClosePath <- z {
 }
 
 CubicBezier <- c _ c1:Coord _ c2:Coord _ c3:Coord {
-    return &Bezier{Points: []Coord{c1.([2]float64), c2.([2]float64), c3.([2]float64)}, Name: fmt.Sprintf("curve_%v", id())}, nil
+    return &Bezier{Points: []Coord{c1.( Coord), c2.( Coord), c3.( Coord)}, Name: fmt.Sprintf("curve_%v", id())}, nil
 }
 
 QuadraticBezier <- q _ c1:Coord _ c2:Coord {
-    return &Bezier{Points: []Coord{c1.([2]float64), c2.([2]float64)}, Name: fmt.Sprintf("curve_%v", id())}, nil
+    return &Bezier{Points: []Coord{c1.( Coord), c2.( Coord)}, Name: fmt.Sprintf("curve_%v", id())}, nil
 }
 
 Number <- val:number {
@@ -67,7 +69,7 @@ Number <- val:number {
 }
 
 Coord <- x:Number _ ','? _ y:Number {
-    return [2]float64{x.(float64), y.(float64)}, nil
+    return  Coord{x.(float64), y.(float64)}, nil
 }
 
 
