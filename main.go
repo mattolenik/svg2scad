@@ -62,7 +62,7 @@ func convert(svg *svg.SVG, outDir string) error {
 	cw := ast.NewCodeWriter(file)
 	defer cw.Close()
 	cw.WriteLines(scad.DefaultImports...)
-	cw.WriteLines("")
+	cw.BlankLine()
 
 	modules := []string{}
 	found := func(m *ast.Module) {
@@ -74,7 +74,7 @@ func convert(svg *svg.SVG, outDir string) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse path from SVG %q: %w", path, err)
 		}
-		err = walk(cw, tree, found)
+		err = walk(cw, tree, found, &ast.Coord{0, 0})
 		if err != nil {
 			return fmt.Errorf("failed to generate OpenSCAD code: %w", err)
 		}
@@ -86,48 +86,45 @@ func convert(svg *svg.SVG, outDir string) error {
 	return nil
 }
 
-func walk(cw *ast.CodeWriter, node any, foundModule func(m *ast.Module)) (err error) {
+func walk(cw *ast.CodeWriter, node any, foundModule func(m *ast.Module), lastPoint *ast.Coord) (err error) {
 	switch node := node.(type) {
 	case []any:
 		for _, n := range node {
-			err := walk(cw, n, foundModule)
+			err := walk(cw, n, foundModule, lastPoint)
 			if err != nil {
 				return err
 			}
 		}
 	case *ast.MoveTo:
-		cw.WriteLines(
-			fmt.Sprintf("translate(%v)", node.Coord),
-			"{",
-		)
-		cw.Tab()
+		*lastPoint = node.Coord
+		cw.WriteLines(fmt.Sprintf("let(cursor = %v)", node.Coord))
+		cw.OpenBrace()
 		for _, child := range node.Children {
-			if err := walk(cw, child, foundModule); err != nil {
+			if err := walk(cw, child, foundModule, lastPoint); err != nil {
 				return err
 			}
 		}
-		cw.Untab()
-		cw.WriteLines("}")
+		cw.CloseBrace()
 	case *ast.Bezier:
-		cw.WriteLines(
-			fmt.Sprintf("%s = %v;", node.Name, node.Points),
-			fmt.Sprintf("%s_curve = bezier_curve(%s);", node.Name, node.Name),
-			// fmt.Sprintf("debug_bezier(%s, N=len(%s)-1);", node.Name, node.Name))
-			fmt.Sprintf(`stroke(%s_curve, width = 5, dots = false, dots_color = "red");`, node.Name))
+		coords := ast.Coords(append([]ast.Coord{*lastPoint}, node.Points...))
+		cw.WriteLinef("%s = %v;", node.Name, coords)
+		cw.WriteLinef("%s_curve = bezier_curve(%s);", node.Name, node.Name)
+		//cw.WriteLinef("debug_bezier(%s, N=len(%s)-1);", node.Name, node.Name)
+		cw.WriteLinef(`stroke(%s_curve, width = 5, dots = false, dots_color = "red");`, node.Name)
+		*lastPoint = node.Points[len(node.Points)-1]
 	case *ast.LineTo:
 		// TODO: line command
 	case *ast.ClosePath:
 		// TODO: close path
 	case *ast.Module:
-		cw.WriteLines(fmt.Sprintf("module %s(anchor, spin, orient)", node.Name), "{")
+		cw.WriteLinef("module %s(anchor, spin, orient)", node.Name)
 
-		cw.Tab()
-		if err := walk(cw, node.Children, foundModule); err != nil {
+		cw.OpenBrace()
+		if err := walk(cw, node.Children, foundModule, lastPoint); err != nil {
 			return err
 		}
-		cw.Untab()
+		cw.CloseBrace()
 
-		cw.WriteLines("}")
 		foundModule(node)
 	default:
 		return fmt.Errorf("unsupported command: %q", reflect.TypeOf(node))
