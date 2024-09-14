@@ -58,6 +58,10 @@ CubicBezier <- c _ c1:Coord _ c2:Coord _ c3:Coord {
     return &Bezier{Points: []Coord{c1.([2]float64), c2.([2]float64), c3.([2]float64)}, Name: fmt.Sprintf("curve_%v", id())}, nil
 }
 
+QuadraticBezier <- q _ c1:Coord _ c2:Coord {
+    return &Bezier{Points: []Coord{c1.([2]float64), c2.([2]float64)}, Name: fmt.Sprintf("curve_%v", id())}, nil
+}
+
 Number <- val:number {
     return strconv.ParseFloat(string(c.text), 10)
 }
@@ -75,6 +79,7 @@ c <- 'C' / 'c'
 z <- 'Z' / 'z'
 h <- 'H' / 'h'
 v <- 'V' / 'v'
+q <- 'Q' / 'q'
 
 digit <- [0-9]
 
