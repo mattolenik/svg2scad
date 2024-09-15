@@ -19,7 +19,7 @@ func main() {
 
 func mainE() error {
 	outDir := flag.String("out", "./curves", "output directory for .scad files")
-	strokeWidth := flag.Int("strokeWidth", 5, "how wide curves will appear on screen, doesn't affect geometry")
+	strokeWidth := flag.Int("strokeWidth", 2, "how wide curves will appear on screen, doesn't affect geometry")
 	//watch := flag.Bool("watch", false, "watch for changes to the .svg files and refresh .scad files automatically")
 	flag.Parse()
 
@@ -40,7 +40,7 @@ func mainE() error {
 		}
 		sw := scad.NewSCADWriter(*outDir)
 		sw.StrokeWidth = *strokeWidth
-		err = sw.ConvertSVG(svg, "")
+		err = sw.ConvertSVG(svg, *outDir, "")
 		if err != nil {
 			log.Errorf("the SVG file %q could not be converted: %w", file, err)
 		}

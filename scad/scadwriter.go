@@ -2,6 +2,7 @@ package scad
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,32 +15,35 @@ import (
 
 type SCADWriter struct {
 	StrokeWidth int
-	OutDir      string
+	SplineSteps int
 }
 
 func NewSCADWriter(outDir string) *SCADWriter {
 	return &SCADWriter{
-		StrokeWidth: 5,
-		OutDir:      outDir,
+		StrokeWidth: 2,
+		SplineSteps: 32,
 	}
 }
 
-func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, filename string) error {
+func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, outDir, filename string) error {
 	if filename == "" {
 		ext := filepath.Ext(svg.Filename)
 		filename = svg.Filename[:len(svg.Filename)-len(ext)] + ".scad"
 	} else {
 		filename = std.EnsureSuffix(filename, ".scad")
 	}
-	outPath := filepath.Join(sw.OutDir, filename)
+	outPath := filepath.Join(outDir, filename)
 	file, err := os.Create(outPath)
 	if err != nil {
+		return fmt.Errorf("couldn't create output .scad file %q: %w", outPath, err)
 	}
 	defer file.Close()
+	return sw.ConvertSVGToSCAD(svg, file)
+}
 
-	cw := ast.NewCodeWriter(file)
-	defer cw.Close()
-	cw.WriteLines(DefaultImports...)
+func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
+	cw := ast.NewCodeWriter()
+	cw.Lines(DefaultImports...)
 	cw.BlankLine()
 
 	modules := []string{}
@@ -59,9 +63,9 @@ func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, filename string) error {
 		pp.Println(tree)
 	}
 	for _, module := range modules {
-		cw.WriteStrings("", fmt.Sprintf("%s();", module))
+		cw.Linef("%s();", module)
 	}
-	return nil
+	return cw.Write(output)
 }
 
 func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, foundModule func(m *ast.Module), lastPoint *ast.Coord, pathID string) (err error) {
@@ -75,21 +79,17 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, foundModule func(m *ast
 		}
 	case *ast.MoveTo:
 		*lastPoint = node.Coord
-		cw.WriteLines(fmt.Sprintf("let(cursor = %v)", node.Coord))
-		cw.OpenBrace()
-		for _, child := range node.Children {
-			if err := sw.walk(cw, child, foundModule, lastPoint, pathID); err != nil {
-				return err
-			}
+		cw.Lines(fmt.Sprintf("let(cursor = %v)", node.Coord))
+		if err := cw.BraceIndent(func() error {
+			return sw.walk(cw, node.Children, foundModule, lastPoint, pathID)
+		}); err != nil {
+			return err
 		}
-		cw.CloseBrace()
 	case *ast.Bezier:
 		coords := ast.Coords(append([]ast.Coord{*lastPoint}, node.Points...))
-		cw.WriteLinef("%s = %v;", node.Name, coords)
-		cw.WriteLinef("%s_curve = bezier_curve(%s);", node.Name, node.Name)
-		//cw.WriteLinef("debug_bezier(%s, N=len(%s)-1);", node.Name, node.Name)
-		cw.WriteLinef(`stroke(%s_curve, width = %d);`, node.Name, sw.StrokeWidth)
-		*lastPoint = node.Points[len(node.Points)-1]
+		cw.Linef("%s = bezier_curve(%v, splinesteps = %d);", node.Name, coords, sw.SplineSteps)
+		cw.Linef(`stroke(%s, width = %d);`, node.Name, sw.StrokeWidth)
+		*lastPoint = node.Points.End()
 	case *ast.LineTo:
 		// TODO: line command
 	case *ast.ClosePath:
@@ -98,13 +98,13 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, foundModule func(m *ast
 		if pathID != "" {
 			node.Name = pathID
 		}
-		cw.WriteLinef("module %s(anchor, spin, orient)", node.Name)
+		cw.Linef("module %s(anchor, spin, orient)", node.Name)
 
-		cw.OpenBrace()
-		if err := sw.walk(cw, node.Children, foundModule, lastPoint, pathID); err != nil {
+		if err := cw.BraceIndent(func() error {
+			return sw.walk(cw, node.Children, foundModule, lastPoint, pathID)
+		}); err != nil {
 			return err
 		}
-		cw.CloseBrace()
 
 		foundModule(node)
 	default:

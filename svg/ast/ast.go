@@ -15,6 +15,10 @@ func (c Coord) String() string {
 
 type Coords []Coord
 
+func (c Coords) End() Coord {
+	return c[len(c)-1]
+}
+
 func (c Coords) String() string {
 	strs := make([]string, len(c))
 	for i, s := range c {
@@ -46,62 +50,39 @@ type Module struct {
 
 type CodeWriter struct {
 	buf      *bytes.Buffer
-	writer   io.WriteCloser
 	depth    int
 	tabWidth int
 	tabStr   string
 }
 
-func NewCodeWriter(writer io.WriteCloser) *CodeWriter {
-	return &CodeWriter{buf: &bytes.Buffer{}, writer: writer, depth: 0, tabWidth: 4}
+func NewCodeWriter() *CodeWriter {
+	return &CodeWriter{buf: &bytes.Buffer{}, depth: 0, tabWidth: 4}
 }
 
-func (cw *CodeWriter) Close() error {
-	if _, err := cw.writer.Write(cw.buf.Bytes()); err != nil {
+func (cw *CodeWriter) Write(writer io.Writer) error {
+	if _, err := writer.Write(cw.buf.Bytes()); err != nil {
 		return fmt.Errorf("failed to write code: %w", err)
 	}
-	return cw.writer.Close()
+	return nil
 }
 
-func (cw *CodeWriter) Tab() {
-	cw.depth++
-	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
-}
-
-func (cw *CodeWriter) Untab() {
-	cw.depth--
-	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
-}
-
-func (cw *CodeWriter) OpenBrace() {
-	cw.WriteLines("{")
-	cw.Tab()
-}
-
-func (cw *CodeWriter) CloseBrace() {
-	cw.Untab()
-	cw.WriteLines("}")
-}
-
-func (cw *CodeWriter) Indent(action func()) {
-	cw.Tab()
-	action()
-	cw.Untab()
-}
-
-func (cw *CodeWriter) WriteLinef(format string, args ...any) {
-	cw.WriteLines(fmt.Sprintf(format, args...))
-}
-
-func (cw *CodeWriter) WriteLines(code ...string) {
-	for _, line := range code {
-		cw.WriteStrings(cw.tabStr, line, "\n")
+func (cw *CodeWriter) BraceIndent(action func() error) error {
+	cw.openBrace()
+	err := action()
+	if err != nil {
+		return fmt.Errorf("error printing indented code: %w", err)
 	}
+	cw.closeBrace()
+	return nil
 }
 
-func (cw *CodeWriter) WriteStrings(strs ...string) {
-	for _, s := range strs {
-		cw.buf.WriteString(s)
+func (cw *CodeWriter) Linef(format string, args ...any) {
+	cw.Lines(fmt.Sprintf(format, args...))
+}
+
+func (cw *CodeWriter) Lines(code ...string) {
+	for _, line := range code {
+		cw.buf.WriteString(cw.tabStr + line + "\n")
 	}
 }
 
@@ -110,5 +91,25 @@ func (cw *CodeWriter) BlankLine() {
 }
 
 func (cw *CodeWriter) BlankLines(num int) {
-	cw.WriteStrings(strings.Repeat("\n", num))
+	cw.buf.WriteString(strings.Repeat("\n", num))
+}
+
+func (cw *CodeWriter) tab() {
+	cw.depth++
+	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
+}
+
+func (cw *CodeWriter) untab() {
+	cw.depth--
+	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
+}
+
+func (cw *CodeWriter) openBrace() {
+	cw.Lines("{")
+	cw.tab()
+}
+
+func (cw *CodeWriter) closeBrace() {
+	cw.untab()
+	cw.Lines("}")
 }
