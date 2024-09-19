@@ -1,22 +1,15 @@
 {
 package ast
 import (
-    "github.com/teris-io/shortid"
+    "github.com/mattolenik/svg2scad/std"
 )
-
-var uniq = -1
-func id() int {
-    uniq++
-    return uniq
 }
 
+Path <- _ seq:Seq {
+    return &Path{Children: seq}, nil
 }
 
-Module <- _ seq:Seq {
-    return &Module{Children: seq, Name: fmt.Sprintf("path_%v", id())}, nil
-}
-
-Seq <- _ seq:(MoveSequence / CommandSequence) {
+Seq <- _ seq:(MoveSequence / Curve) {
     return seq, nil
 }
 
@@ -28,7 +21,9 @@ MoveSequence <- _ move:Move _ rest:Seq* {
     return nil, nil
 }
 
-CommandSequence <- Command+
+Curve <- cmds:Command+ {
+    return &Curve{Children: std.TypedSlice[any](cmds)}, nil
+}
 
 Command <- _ val:(LineTo / CubicBezier / ClosePath) {
     return val, nil
@@ -49,7 +44,8 @@ MoveV <- v _ val:Number {
 }
 
 LineTo <- l _ coord:Coord {
-    return &LineTo{Coord: coord.( Coord)}, nil
+    // return &LineTo{Coord: coord.( Coord)}, nil
+    return nil, fmt.Errorf("straight lines not implemented yet")
 }
 
 ClosePath <- z {
@@ -57,11 +53,12 @@ ClosePath <- z {
 }
 
 CubicBezier <- c _ c1:Coord _ c2:Coord _ c3:Coord {
-    return &Bezier{Points: []Coord{c1.( Coord), c2.( Coord), c3.( Coord)}, Name: fmt.Sprintf("curve_%v", id())}, nil
+    return &CubicBezier{Points: []Coord{c1.(Coord), c2.(Coord), c3.(Coord)}}, nil
 }
 
 QuadraticBezier <- q _ c1:Coord _ c2:Coord {
-    return &Bezier{Points: []Coord{c1.( Coord), c2.( Coord)}, Name: fmt.Sprintf("curve_%v", id())}, nil
+    // return &QuadraticBezier{Points: []Coord{c1.(Coord), c2.(Coord)}}, nil
+    return nil, fmt.Errorf("quadratic curves not implemented yet")
 }
 
 Number <- val:number {

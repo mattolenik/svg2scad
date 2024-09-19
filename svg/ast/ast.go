@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+type Curve struct {
+	Children []any
+}
+
 type Coord [2]float64
 
 func (c Coord) String() string {
@@ -36,14 +40,17 @@ type LineTo struct {
 	Coord Coord
 }
 
-type Bezier struct {
+type CubicBezier struct {
 	Points Coords
-	Name   string
+}
+
+type QuadraticBezier struct {
+	Points Coords
 }
 
 type ClosePath struct{}
 
-type Module struct {
+type Path struct {
 	Name     string
 	Children any
 }
@@ -67,12 +74,12 @@ func (cw *CodeWriter) Write(writer io.Writer) error {
 }
 
 func (cw *CodeWriter) BraceIndent(action func() error) error {
-	cw.openBrace()
+	cw.OpenBrace()
 	err := action()
 	if err != nil {
 		return fmt.Errorf("error printing indented code: %w", err)
 	}
-	cw.closeBrace()
+	cw.CloseBrace()
 	return nil
 }
 
@@ -104,12 +111,12 @@ func (cw *CodeWriter) untab() {
 	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
 }
 
-func (cw *CodeWriter) openBrace() {
+func (cw *CodeWriter) OpenBrace() {
 	cw.Lines("{")
 	cw.tab()
 }
 
-func (cw *CodeWriter) closeBrace() {
+func (cw *CodeWriter) CloseBrace() {
 	cw.untab()
 	cw.Lines("}")
 }

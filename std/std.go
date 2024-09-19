@@ -8,7 +8,27 @@ import (
 	"strings"
 )
 
-func Map[TIn any, TOut any](items []TIn, mapFn func(v *TIn) TOut) []TOut {
+func TypedSlice[T any](v any) []T {
+	items, ok := v.([]any)
+	if !ok {
+		panic(fmt.Errorf("TypedSlice failed: argument is of type %s, not []any", reflect.TypeOf(v)))
+	}
+	result := make([]T, len(items))
+	for i := range items {
+		result[i] = items[i].(T)
+	}
+	return result
+}
+
+func Map[TIn any, TOut any](items []TIn, mapFn func(v TIn) TOut) []TOut {
+	result := make([]TOut, len(items))
+	for i := range items {
+		result[i] = mapFn(items[i])
+	}
+	return result
+}
+
+func MapP[TIn any, TOut any](items []TIn, mapFn func(v *TIn) TOut) []TOut {
 	result := make([]TOut, len(items))
 	for i := range items {
 		result[i] = mapFn(&items[i])

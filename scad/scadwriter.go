@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 
 	"github.com/k0kubun/pp/v3"
 	"github.com/mattolenik/svg2scad/std"
+	"github.com/mattolenik/svg2scad/std/strs"
 	"github.com/mattolenik/svg2scad/svg"
 	"github.com/mattolenik/svg2scad/svg/ast"
 )
@@ -17,13 +17,22 @@ import (
 type SCADWriter struct {
 	StrokeWidth int
 	SplineSteps int
+	Cursor      string
+	nextID      int
 }
 
 func NewSCADWriter(outDir string) *SCADWriter {
 	return &SCADWriter{
 		StrokeWidth: 2,
 		SplineSteps: 32,
+		Cursor:      "cursor",
+		nextID:      0,
 	}
+}
+func (sw *SCADWriter) id() int {
+	id := sw.nextID
+	sw.nextID++
+	return id
 }
 
 func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, outDir, filename string) error {
@@ -48,7 +57,7 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 	cw.BlankLine()
 
 	modules := []string{}
-	found := func(m *ast.Module) {
+	found := func(m *ast.Path) {
 		modules = append(modules, m.Name)
 	}
 
@@ -57,7 +66,7 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse path from SVG %q: %w", path, err)
 		}
-		if err := sw.walk(cw, tree,
+		if _, err := sw.walk(cw, tree,
 			&walkState{
 				foundModule: found,
 				lastPoint:   ast.Coord{0, 0}.String(),
@@ -77,34 +86,64 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 type walkState struct {
 	lastPoint   string
 	pathID      string
-	foundModule func(*ast.Module)
+	foundModule func(*ast.Path)
 }
 
-func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (err error) {
+func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val any, err error) {
 	switch node := node.(type) {
 	case []any:
+		results := []any{}
 		for _, n := range node {
-			err := sw.walk(cw, n, state)
+			r, err := sw.walk(cw, n, state)
 			if err != nil {
-				return err
+				return nil, err
 			}
+			results = append(results, r)
 		}
+		return results, nil
 
 	case *ast.MoveTo:
 		state.lastPoint = "cursor"
 		cw.Lines(fmt.Sprintf("let(cursor = %v)", node.Coord))
-		if err := cw.BraceIndent(func() error {
-			return sw.walk(cw, node.Children, state)
-		}); err != nil {
-			return err
-		}
+		cw.OpenBrace()
+		defer cw.CloseBrace()
+		return sw.walk(cw, node.Children, state)
 
-	case *ast.Bezier:
-		coords := append([]string{state.lastPoint}, std.Map(node.Points, func(v *ast.Coord) string { return v.String() })...)
-		cw.Linef("%s = [ %v ];", node.Name, strings.Join(coords, ", "))
-		cw.Linef(`stroke(bezier_curve(%s, splinesteps = %d), width = %d);`, node.Name, sw.SplineSteps, sw.StrokeWidth)
+	case *ast.Curve:
+		coords := []any{"cursor"}
+		curveVars := []string{}
+		for i, child := range node.Children {
+			r, err := sw.walk(cw, child, state)
+			if err != nil {
+				return nil, fmt.Errorf("failed building curve: %w", err)
+			}
+			if r == nil {
+				continue
+			}
+			switch r := r.(type) {
+			case ast.Coords:
+				varName := fmt.Sprintf("c%d", i)
+				curveVars = append(curveVars, varName)
+				cw.Linef("%s = %v;", varName, r)
+			default:
+				return nil, fmt.Errorf("unimplemented case for type %v", reflect.TypeOf(r))
+			}
+		}
+		for _, varName := range curveVars {
+			idx := func(i int) string { return fmt.Sprintf("%s[%d]", varName, i) }
+			coords = append(coords, idx(0), idx(1), idx(2))
+		}
+		cw.Linef("curve = %s;", strs.Bracketed(coords))
+		cw.Linef("path = bezpath_curve(curve);")
+		cw.Linef(`stroke(path, width = %d);`, sw.StrokeWidth)
+
+	case *ast.CubicBezier:
+		//return node.Points, nil
+		return node.Points, nil
+		// cw.Linef("%s = [ %v ];", node.Name, strings.Join(coords, ", "))
+		// cw.Linef(`stroke(bezier_curve(%s, splinesteps = %d), width = %d);`, node.Name, sw.SplineSteps, sw.StrokeWidth)
 		// state.lastPoint = node.Points[len(node.Points)-1].String()
-		state.lastPoint = fmt.Sprintf("%s[%d]", node.Name, len(node.Points))
+		// state.lastPoint = fmt.Sprintf("%s[%d]", node.Name, len(node.Points))
 
 	case *ast.LineTo:
 		// TODO: line command
@@ -112,22 +151,22 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (err 
 	case *ast.ClosePath:
 		// TODO: close path
 
-	case *ast.Module:
+	case *ast.Path:
+
 		if state.pathID != "" {
 			node.Name = state.pathID
+		} else {
+			node.Name = fmt.Sprintf("path_%d", sw.id())
 		}
 		cw.Linef("module %s(anchor, spin, orient)", node.Name)
 
-		if err := cw.BraceIndent(func() error {
-			return sw.walk(cw, node.Children, state)
-		}); err != nil {
-			return err
-		}
-
-		state.foundModule(node)
+		cw.OpenBrace()
+		defer cw.CloseBrace()
+		defer state.foundModule(node)
+		return sw.walk(cw, node.Children, state)
 
 	default:
-		return fmt.Errorf("unsupported command: %q", reflect.TypeOf(node))
+		return nil, fmt.Errorf("unsupported command: %q", reflect.TypeOf(node))
 	}
-	return nil
+	return nil, nil
 }
