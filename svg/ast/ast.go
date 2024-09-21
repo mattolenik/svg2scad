@@ -34,6 +34,7 @@ func (c Coords) String() string {
 type MoveTo struct {
 	Coord    Coord
 	Children []any
+	Relative bool
 }
 
 type LineTo struct {
@@ -41,7 +42,8 @@ type LineTo struct {
 }
 
 type CubicBezier struct {
-	Points Coords
+	Points   Coords
+	Relative bool
 }
 
 type QuadraticBezier struct {

@@ -1,8 +1,15 @@
 {
 package ast
 import (
+    "unicode"
     "github.com/mattolenik/svg2scad/std"
+    "github.com/mattolenik/svg2scad/std/strs"
 )
+
+func isRelative(text []byte) (bool, error) {
+    s := string(text)
+    return strs.IsLower(s), nil
+}
 }
 
 Path <- _ seq:Seq {
@@ -25,26 +32,26 @@ Curve <- cmds:Command+ {
     return &Curve{Children: std.TypedSlice[any](cmds)}, nil
 }
 
-Command <- _ val:(LineTo / CubicBezier / ClosePath) {
+Command <- _ val:(LineTo / Bezier / ClosePath) {
     return val, nil
 }
 
 Move <- MoveTo / MoveH / MoveV
 
-MoveTo <- m _ coord:Coord {
-    return &MoveTo{Coord: coord.( Coord)}, nil
+MoveTo <- rel:m _ coord:Coord {
+    return &MoveTo{Coord: coord.(Coord), Relative: rel.(bool)}, nil
 }
 
-MoveH <- h _ val:Number {
-    return &MoveTo{Coord:  Coord{val.(float64), 0}}, nil
+MoveH <- rel:h _ val:Number {
+    return &MoveTo{Coord: Coord{val.(float64), 0}, Relative: rel.(bool)}, nil
 }
 
-MoveV <- v _ val:Number {
-    return &MoveTo{Coord:  Coord{0, val.(float64)}}, nil
+MoveV <- rel:v _ val:Number {
+    return &MoveTo{Coord: Coord{0, val.(float64)}, Relative: rel.(bool)}, nil
 }
 
-LineTo <- l _ coord:Coord {
-    // return &LineTo{Coord: coord.( Coord)}, nil
+LineTo <- rel:l _ coord:Coord {
+    // return &LineTo{Coord: coord.(Coord), Relative: rel.(bool)}, nil
     return nil, fmt.Errorf("straight lines not implemented yet")
 }
 
@@ -52,8 +59,10 @@ ClosePath <- z {
     return &ClosePath{}, nil
 }
 
-CubicBezier <- c _ c1:Coord _ c2:Coord _ c3:Coord {
-    return &CubicBezier{Points: []Coord{c1.(Coord), c2.(Coord), c3.(Coord)}}, nil
+Bezier <- CubicBezier / QuadraticBezier
+
+CubicBezier <- rel:c _ c1:Coord _ c2:Coord _ c3:Coord {
+    return &CubicBezier{Points: []Coord{c1.(Coord), c2.(Coord), c3.(Coord)}, Relative: rel.(bool)}, nil
 }
 
 QuadraticBezier <- q _ c1:Coord _ c2:Coord {
@@ -66,19 +75,24 @@ Number <- val:number {
 }
 
 Coord <- x:Number _ ','? _ y:Number {
-    return  Coord{x.(float64), y.(float64)}, nil
+    return Coord{x.(float64), y.(float64)}, nil
 }
-
 
 number <- '-'? digit+ ('.' digit+)?
 
-m <- 'M' / 'm'
-l <- 'L' / 'l'
-c <- 'C' / 'c'
-z <- 'Z' / 'z'
-h <- 'H' / 'h'
-v <- 'V' / 'v'
-q <- 'Q' / 'q'
+m <- val:('M' / 'm') { return isRelative(c.text) }
+
+l <- val:('L' / 'l') { return isRelative(c.text) }
+
+c <- val:('C' / 'c') { return isRelative(c.text) }
+
+z <- val:('Z' / 'z') { return isRelative(c.text) }
+
+h <- val:('H' / 'h') { return isRelative(c.text) }
+
+v <- val:('V' / 'v') { return isRelative(c.text) }
+
+q <- val:('Q' / 'q') { return isRelative(c.text) }
 
 digit <- [0-9]
 
