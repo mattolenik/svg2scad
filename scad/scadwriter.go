@@ -141,10 +141,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 		// state.lastPoint = fmt.Sprintf("%s[%d]", node.Name, len(node.Points))
 
 	case *ast.LineTo:
-		return []string{
-			fmt.Sprintf("let(path = concat(path, [ %v ]))", node.Coord),
-			fmt.Sprintf("let(%s = path[len(path)-1])", sw.Cursor),
-		}, nil
+		return fmt.Sprintf("let(path = concat(path, [ %v ]))", node.Coord), nil
 	case *ast.ClosePath:
 		// TODO: close path
 		return nil, nil
