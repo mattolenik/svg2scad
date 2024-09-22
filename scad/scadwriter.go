@@ -56,9 +56,9 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 	cw.Lines(DefaultImports...)
 	cw.BlankLine()
 
-	modules := []string{}
-	found := func(m *ast.Path) {
-		modules = append(modules, m.Name)
+	pathFunctions := []string{}
+	appendFunction := func(m *ast.Path) {
+		pathFunctions = append(pathFunctions, m.Name)
 	}
 
 	for _, path := range svg.Paths {
@@ -68,7 +68,7 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 		}
 		if _, err := sw.walk(cw, tree,
 			&walkState{
-				foundModule: found,
+				addFunction: appendFunction,
 				lastPoint:   ast.Coord{0, 0}.String(),
 				pathID:      path.ID,
 			},
@@ -78,8 +78,16 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 		pp.Println(tree)
 	}
 	cw.BlankLine()
-	for _, module := range modules {
-		cw.Linef("stroke(%s([0, 0]));", module)
+	for _, fn := range pathFunctions {
+		// cw.Linef("stroke(%s([0, 0]));", module)
+		cw.BlankLine()
+		cw.Linef("module %s(anchor, spin, orient)", fn)
+		cw.OpenBrace()
+		cw.Linef("polygon(%s([0, 0]));", fn)
+		cw.CloseBrace()
+	}
+	for _, module := range pathFunctions {
+		cw.Linef("%s();", module)
 	}
 	return cw.Write(output)
 }
@@ -87,7 +95,7 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 type walkState struct {
 	lastPoint   string
 	pathID      string
-	foundModule func(*ast.Path)
+	addFunction func(*ast.Path)
 }
 
 func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val any, err error) {
@@ -129,16 +137,11 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 			coords = append(coords, idx(0), idx(1), idx(2))
 		}
 		cw.Linef("let(curve = %s)", strs.Bracketed(coords))
-		cw.Linef("let(path = bezpath_curve(curve))")
+		cw.Linef("let(path = bezpath_curve(curve, splinesteps=%d))", sw.SplineSteps)
 		cw.Lines(lines...)
 
 	case *ast.CubicBezier:
-		//return node.Points, nil
 		return node.Points, nil
-		// cw.Linef("%s = [ %v ];", node.Name, strings.Join(coords, ", "))
-		// cw.Linef(`stroke(bezier_curve(%s, splinesteps = %d), width = %d);`, node.Name, sw.SplineSteps, sw.StrokeWidth)
-		// state.lastPoint = node.Points[len(node.Points)-1].String()
-		// state.lastPoint = fmt.Sprintf("%s[%d]", node.Name, len(node.Points))
 
 	case *ast.LineTo:
 		return fmt.Sprintf("let(path = concat(path, [ %v ]))", node.Coord), nil
@@ -155,7 +158,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 		cw.Linef("function %s(%s) =", node.Name, sw.Cursor)
 		cw.Tab()
 		defer cw.Untab()
-		defer state.foundModule(node)
+		defer state.addFunction(node)
 		return sw.walk(cw, node.Children, state)
 
 	case []any:
