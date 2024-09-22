@@ -12,27 +12,28 @@ func isRelative(text []byte) (bool, error) {
 }
 }
 
-Path <- _ seq:Seq {
-    return &Path{Children: seq}, nil
+Path <- _ curve:Curve {
+    return &Path{Children: curve}, nil
 }
 
-Seq <- _ seq:(MoveSequence / Curve) {
+Seq <- _ seq:(Curve) {
     return seq, nil
 }
 
-MoveSequence <- _ move:Move _ rest:Seq* {
-    if mv, ok := move.(*MoveTo); ok {
-        mv.Children = rest.([]any)
-        return mv, nil
-    }
-    return nil, nil
-}
+// MoveSequence <- _ move:Move _ rest:Seq* {
+//     if mv, ok := move.(*MoveTo); ok {
+//         mv.Children = rest.([]any)
+//         return mv, nil
+//     }
+//     return nil, fmt.Errorf("unexpected condition")
+// }
 
 Curve <- cmds:Command+ {
-    return &Curve{Children: std.TypedSlice[any](cmds)}, nil
+    // return &Curve{Children: std.TypedSlice[any](cmds)}, nil
+    return CommandList(std.TypedSlice[any](cmds)), nil
 }
 
-Command <- _ val:(LineTo / Bezier / ClosePath) {
+Command <- _ val:(Move / LineTo / Bezier / ClosePath) {
     return val, nil
 }
 
@@ -51,8 +52,7 @@ MoveV <- rel:v _ val:Number {
 }
 
 LineTo <- rel:l _ coord:Coord {
-    // return &LineTo{Coord: coord.(Coord), Relative: rel.(bool)}, nil
-    return nil, fmt.Errorf("straight lines not implemented yet")
+    return &LineTo{Coord: coord.(Coord), Relative: rel.(bool)}, nil
 }
 
 ClosePath <- z {

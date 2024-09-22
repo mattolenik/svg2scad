@@ -11,6 +11,8 @@ type Curve struct {
 	Children []any
 }
 
+type CommandList []any
+
 type Coord [2]float64
 
 func (c Coord) String() string {
@@ -33,12 +35,12 @@ func (c Coords) String() string {
 
 type MoveTo struct {
 	Coord    Coord
-	Children []any
 	Relative bool
 }
 
 type LineTo struct {
-	Coord Coord
+	Coord    Coord
+	Relative bool
 }
 
 type CubicBezier struct {
@@ -103,22 +105,22 @@ func (cw *CodeWriter) BlankLines(num int) {
 	cw.buf.WriteString(strings.Repeat("\n", num))
 }
 
-func (cw *CodeWriter) tab() {
+func (cw *CodeWriter) Tab() {
 	cw.depth++
 	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
 }
 
-func (cw *CodeWriter) untab() {
+func (cw *CodeWriter) Untab() {
 	cw.depth--
 	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
 }
 
 func (cw *CodeWriter) OpenBrace() {
 	cw.Lines("{")
-	cw.tab()
+	cw.Tab()
 }
 
 func (cw *CodeWriter) CloseBrace() {
-	cw.untab()
+	cw.Untab()
 	cw.Lines("}")
 }
