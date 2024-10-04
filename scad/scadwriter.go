@@ -178,3 +178,19 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 	cw.Lines("    path;")
 	return nil, nil
 }
+
+// function extents(coords, largest = [ -1e9, -1e9 ], smallest = [ 1e9, 1e9 ]) =
+//     len(coords) == 0 ? [ largest, smallest ]
+//                      : extents(list_tail(coords), // Manually pass the rest of the list
+
+//                                [ max(largest[0], coords[0][0]), max(largest[1], coords[0][1]) ],
+//                                [ min(smallest[0], coords[0][0]), min(smallest[1], coords[0][1]) ]);
+
+// p = abcdef([ 0, 0 ]);
+// result = extents(p);
+// echo(result);
+// width = result[0][0] - result[1][0];
+// height = result[0][1] - result[1][1];
+// echo(width, height);
+// translate([ width / 2 + result[1][0], height / 2 + result[1][1] ])
+// #rect(size = [ width, height ]);
