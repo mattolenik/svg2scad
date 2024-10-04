@@ -12,6 +12,7 @@ import (
 	"github.com/mattolenik/svg2scad/std/strs"
 	"github.com/mattolenik/svg2scad/svg"
 	"github.com/mattolenik/svg2scad/svg/ast"
+	"golang.org/x/text/cases"
 )
 
 type SCADWriter struct {
@@ -19,6 +20,7 @@ type SCADWriter struct {
 	SplineSteps int
 	Cursor      string
 	nextID      int
+	PathPrefix  string
 }
 
 func NewSCADWriter(outDir string) *SCADWriter {
@@ -27,6 +29,7 @@ func NewSCADWriter(outDir string) *SCADWriter {
 		SplineSteps: 32,
 		Cursor:      "cursor",
 		nextID:      0,
+		PathPrefix:  "path",
 	}
 }
 func (sw *SCADWriter) id() int {
@@ -55,6 +58,8 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 	cw := ast.NewCodeWriter()
 	cw.Lines(DefaultImports...)
 	cw.BlankLine()
+	cw.Lines(Functions...)
+	cw.BlankLine()
 
 	pathFunctions := []string{}
 	appendFunction := func(m *ast.Path) {
@@ -81,13 +86,35 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 	for _, fn := range pathFunctions {
 		// cw.Linef("stroke(%s([0, 0]));", module)
 		cw.BlankLine()
-		cw.Linef("module %s(anchor, spin, orient)", fn)
+		cw.Linef("module %s2d(anchor, spin, orient)", fn)
 		cw.OpenBrace()
-		cw.Linef("polygon(%s([0, 0]));", fn)
+		cw.Linef("p = %s([ 0, 0 ]);", fn)
+		cw.Linef("exts = extents(p);")
+		cw.Linef("width = exts[0][0] - exts[1][0];")
+		cw.Linef("height = exts[0][1] - exts[1][1];")
+		cw.Linef("attachable(anchor, spin, orient, two_d = true, size = [ width, height ])")
+		cw.OpenBrace()
+		cw.Linef("translate(-[ width / 2 + exts[1][0], height / 2 + exts[1][1] ]) polygon(p);")
+		cw.Linef("children();")
+		cw.CloseBrace()
+		cw.CloseBrace()
+
+		cw.BlankLine()
+		cw.Linef("module %s(depth, anchor, spin, orient)", fn)
+		cw.OpenBrace()
+		cw.Linef("p = %s([ 0, 0 ]);", fn)
+		cw.Linef("exts = extents(p);")
+		cw.Linef("width = exts[0][0] - exts[1][0];")
+		cw.Linef("height = exts[0][1] - exts[1][1];")
+		cw.Linef("attachable(anchor, spin, orient, size = [ width, height, depth ])")
+		cw.OpenBrace()
+		cw.Linef("translate(-[ width / 2 + exts[1][0], height / 2 + exts[1][1], depth / 2 ]) linear_extrude(depth) polygon(p);")
+		cw.Linef("children();")
+		cw.CloseBrace()
 		cw.CloseBrace()
 	}
 	for _, module := range pathFunctions {
-		cw.Linef("%s();", module)
+		cw.Linef("%s(100);", module)
 	}
 	return cw.Write(output)
 }
@@ -104,7 +131,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 
 	case *ast.MoveTo:
 		state.lastPoint = sw.Cursor
-		cw.Linef("let(%s = %s + %v)", sw.Cursor, sw.Cursor, node.Coord)
+		cw.Linef("let(%s = %s + %v,", sw.Cursor, sw.Cursor, node.Coord)
 		return nil, nil
 
 	case ast.CommandList:
@@ -121,9 +148,9 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 			}
 			switch r := r.(type) {
 			case ast.Coords:
-				varName := fmt.Sprintf("c%d", i)
+				varName := fmt.Sprintf("c%03d", i)
 				curveVars = append(curveVars, varName)
-				cw.Linef("let(%s = %v)", varName, r)
+				cw.Linef("%s = %v,", varName, r)
 			case string:
 				lines = append(lines, r)
 			case []string:
@@ -136,7 +163,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 			idx := func(i int) string { return fmt.Sprintf("%s[%d]", varName, i) }
 			coords = append(coords, idx(0), idx(1), idx(2))
 		}
-		cw.Linef("let(curve = %s)", strs.Bracketed(coords))
+		cw.Linef("curve = %s)", strs.Bracketed(coords))
 		cw.Linef("let(path = bezpath_curve(curve, splinesteps=%d))", sw.SplineSteps)
 		cw.Lines(lines...)
 
@@ -151,9 +178,9 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 
 	case *ast.Path:
 		if state.pathID != "" {
-			node.Name = state.pathID
+			node.Name = fmt.Sprintf("%s%v", sw.PathPrefix, cases.Title(state.pathID))
 		} else {
-			node.Name = fmt.Sprintf("path_%d", sw.id())
+			node.Name = fmt.Sprintf("%s%d", sw.PathPrefix, sw.id())
 		}
 		cw.Linef("function %s(%s) =", node.Name, sw.Cursor)
 		cw.Tab()
@@ -178,19 +205,3 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 	cw.Lines("    path;")
 	return nil, nil
 }
-
-// function extents(coords, largest = [ -1e9, -1e9 ], smallest = [ 1e9, 1e9 ]) =
-//     len(coords) == 0 ? [ largest, smallest ]
-//                      : extents(list_tail(coords), // Manually pass the rest of the list
-
-//                                [ max(largest[0], coords[0][0]), max(largest[1], coords[0][1]) ],
-//                                [ min(smallest[0], coords[0][0]), min(smallest[1], coords[0][1]) ]);
-
-// p = abcdef([ 0, 0 ]);
-// result = extents(p);
-// echo(result);
-// width = result[0][0] - result[1][0];
-// height = result[0][1] - result[1][1];
-// echo(width, height);
-// translate([ width / 2 + result[1][0], height / 2 + result[1][1] ])
-// #rect(size = [ width, height ]);

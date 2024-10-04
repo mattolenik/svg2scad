@@ -16,7 +16,7 @@ type CommandList []any
 type Coord [2]float64
 
 func (c Coord) String() string {
-	return fmt.Sprintf("[ %v, %v ]", c[0], c[1])
+	return fmt.Sprintf("[ %.3f, %.3f ]", c[0], c[1])
 }
 
 type Coords []Coord
