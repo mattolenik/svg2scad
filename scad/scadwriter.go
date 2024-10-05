@@ -75,7 +75,6 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 		if _, err := sw.walk(cw, tree,
 			&walkState{
 				addFunction: appendFunction,
-				lastPoint:   ast.Coord{0, 0}.String(),
 				pathID:      path.ID,
 			},
 		); err != nil {
@@ -111,9 +110,21 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 }
 
 type walkState struct {
-	lastPoint   string
 	addFunction func(*ast.Path)
 	pathID      string
+	points      []ast.Coord
+}
+
+func (ws *walkState) addPoint(p ast.Coord) {
+	ws.points = append(ws.points, p)
+}
+
+func (ws *walkState) firstPoint() ast.Coord {
+	return ws.points[0]
+}
+
+func (ws *walkState) lastPoint() ast.Coord {
+	return ws.points[len(ws.points)-1]
 }
 
 func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val any, err error) {
@@ -121,8 +132,11 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 	switch node := node.(type) {
 
 	case *ast.MoveTo:
-		state.lastPoint = cursor
+		if node.Relative {
+			node.Coord = node.Coord.Add(state.lastPoint())
+		}
 		cw.Linef("let(%s = %s + %v,", cursor, cursor, node.Coord)
+		state.addPoint(node.Coord)
 		return nil, nil
 
 	case ast.CommandList:
@@ -142,10 +156,14 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 				varName := fmt.Sprintf("c%03d", i)
 				curveVars = append(curveVars, varName)
 				cw.Linef("%s = %v,", varName, r)
+				state.addPoint(r[len(r)-1])
+
 			case string:
 				lines = append(lines, r)
+
 			case []string:
 				lines = append(lines, r...)
+
 			default:
 				return nil, fmt.Errorf("type %v is not supported", reflect.TypeOf(r))
 			}
@@ -159,10 +177,18 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 		cw.Lines(lines...)
 
 	case *ast.CubicBezier:
+		if node.Relative {
+			node.Points = node.Points.Add(state.lastPoint())
+		}
 		return node.Points, nil
 
 	case *ast.LineTo:
-		return fmt.Sprintf("let(path = concat(path, [ %v ]))", node.Coord), nil
+		if node.Relative {
+			node.Coord = node.Coord.Add(state.lastPoint())
+		}
+		// Convert to a curve
+		return ast.Coords{node.Coord, node.Coord, node.Coord}, nil
+
 	case *ast.ClosePath:
 		// TODO: close path
 		return nil, nil

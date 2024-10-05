@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 )
 
@@ -19,6 +20,12 @@ func (c Coord) String() string {
 	return fmt.Sprintf("[ %.3f, %.3f ]", c[0], c[1])
 }
 
+func (c Coord) Add(coord Coord) Coord {
+	return Coord{c[0] + coord[0], c[1] + coord[1]}
+}
+
+var Cursor = [2]float64{math.NaN(), math.NaN()} // Represents "cursor" that isn't a numeric value
+
 type Coords []Coord
 
 func (c Coords) End() Coord {
@@ -31,6 +38,14 @@ func (c Coords) String() string {
 		strs[i] = s.String()
 	}
 	return "[ " + strings.Join(strs, ", ") + " ]"
+}
+
+func (c Coords) Add(coord Coord) Coords {
+	result := make(Coords, len(c))
+	for i, cc := range c {
+		result[i] = cc.Add(coord)
+	}
+	return result
 }
 
 type MoveTo struct {
