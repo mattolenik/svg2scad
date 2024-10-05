@@ -13,7 +13,7 @@ type SVG struct {
 	Version  string   `xml:"version,attr"`
 	Width    string   `xml:"width,attr"`
 	Height   string   `xml:"height,attr"`
-	Paths    []Path   `xml:"path"`
+	Paths    []*Path  `xml:"path"`
 	Filename string
 }
 

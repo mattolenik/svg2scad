@@ -77,50 +77,48 @@ func (cw *CodeWriter) Write(writer io.Writer) error {
 	return nil
 }
 
-func (cw *CodeWriter) BraceIndent(action func() error) error {
-	cw.OpenBrace()
-	err := action()
-	if err != nil {
-		return fmt.Errorf("error printing indented code: %w", err)
-	}
-	cw.CloseBrace()
-	return nil
-}
-
-func (cw *CodeWriter) Linef(format string, args ...any) {
+func (cw *CodeWriter) Linef(format string, args ...any) *CodeWriter {
 	cw.Lines(fmt.Sprintf(format, args...))
+	return cw
 }
 
-func (cw *CodeWriter) Lines(code ...string) {
+func (cw *CodeWriter) Lines(code ...string) *CodeWriter {
 	for _, line := range code {
 		cw.buf.WriteString(cw.tabStr + line + "\n")
 	}
+	return cw
 }
 
-func (cw *CodeWriter) BlankLine() {
+func (cw *CodeWriter) BlankLine() *CodeWriter {
 	cw.BlankLines(1)
+	return cw
 }
 
-func (cw *CodeWriter) BlankLines(num int) {
+func (cw *CodeWriter) BlankLines(num int) *CodeWriter {
 	cw.buf.WriteString(strings.Repeat("\n", num))
+	return cw
 }
 
-func (cw *CodeWriter) Tab() {
+func (cw *CodeWriter) Tab() *CodeWriter {
 	cw.depth++
 	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
+	return cw
 }
 
-func (cw *CodeWriter) Untab() {
+func (cw *CodeWriter) Untab() *CodeWriter {
 	cw.depth--
 	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
+	return cw
 }
 
-func (cw *CodeWriter) OpenBrace() {
+func (cw *CodeWriter) OpenBrace() *CodeWriter {
 	cw.Lines("{")
 	cw.Tab()
+	return cw
 }
 
-func (cw *CodeWriter) CloseBrace() {
+func (cw *CodeWriter) CloseBrace() *CodeWriter {
 	cw.Untab()
 	cw.Lines("}")
+	return cw
 }

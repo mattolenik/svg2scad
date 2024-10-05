@@ -18,3 +18,7 @@ func IsLower(s string) bool {
 func IsUpper(s string) bool {
 	return strings.ToUpper(s) == s
 }
+
+func Capitalize(s string) string {
+	return strings.ToUpper(s[0:1]) + s[1:]
+}
