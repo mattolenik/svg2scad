@@ -190,8 +190,8 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 		return ast.Coords{node.Coord, node.Coord, node.Coord}, nil
 
 	case *ast.ClosePath:
-		// TODO: close path
-		return nil, nil
+		c := state.firstPoint()
+		return ast.Coords{c, c, c}, nil
 
 	case *ast.Path:
 		node.Name = state.pathID
