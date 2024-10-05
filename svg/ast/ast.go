@@ -40,6 +40,14 @@ func (c Coords) String() string {
 	return "[ " + strings.Join(strs, ", ") + " ]"
 }
 
+func (c Coords) GoString() string {
+	strs := make([]string, len(c))
+	for i, s := range c {
+		strs[i] = s.String()
+	}
+	return strings.Join(strs, ", ")
+}
+
 func (c Coords) Add(coord Coord) Coords {
 	result := make(Coords, len(c))
 	for i, cc := range c {
@@ -75,14 +83,19 @@ type Path struct {
 }
 
 type CodeWriter struct {
-	buf      *bytes.Buffer
-	depth    int
-	tabWidth int
-	tabStr   string
+	buf         bytes.Buffer
+	depth       int
+	tabWidth    int
+	tabStr      string
+	indentation string
 }
 
 func NewCodeWriter() *CodeWriter {
-	return &CodeWriter{buf: &bytes.Buffer{}, depth: 0, tabWidth: 4}
+	tw := 4
+	return &CodeWriter{
+		tabWidth: tw,
+		tabStr:   strings.Repeat(" ", tw),
+	}
 }
 
 func (cw *CodeWriter) Write(writer io.Writer) error {
@@ -92,6 +105,11 @@ func (cw *CodeWriter) Write(writer io.Writer) error {
 	return nil
 }
 
+func (cw *CodeWriter) Printf(format string, args ...any) error {
+	_, err := cw.buf.WriteString(cw.indentation + fmt.Sprintf(format, args...))
+	return err
+}
+
 func (cw *CodeWriter) Linef(format string, args ...any) *CodeWriter {
 	cw.Lines(fmt.Sprintf(format, args...))
 	return cw
@@ -99,7 +117,7 @@ func (cw *CodeWriter) Linef(format string, args ...any) *CodeWriter {
 
 func (cw *CodeWriter) Lines(code ...string) *CodeWriter {
 	for _, line := range code {
-		cw.buf.WriteString(cw.tabStr + line + "\n")
+		cw.buf.WriteString(cw.indentation + line + "\n")
 	}
 	return cw
 }
@@ -115,25 +133,30 @@ func (cw *CodeWriter) BlankLines(num int) *CodeWriter {
 }
 
 func (cw *CodeWriter) Tab() *CodeWriter {
-	cw.depth++
-	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
+	cw.buf.WriteString(cw.tabStr)
 	return cw
 }
 
-func (cw *CodeWriter) Untab() *CodeWriter {
+func (cw *CodeWriter) Indent() *CodeWriter {
+	cw.depth++
+	cw.indentation = strings.Repeat(cw.tabStr, cw.depth)
+	return cw
+}
+
+func (cw *CodeWriter) Unindent() *CodeWriter {
 	cw.depth--
-	cw.tabStr = strings.Repeat(" ", cw.depth*cw.tabWidth)
+	cw.indentation = strings.Repeat(cw.tabStr, cw.depth)
 	return cw
 }
 
 func (cw *CodeWriter) OpenBrace() *CodeWriter {
 	cw.Lines("{")
-	cw.Tab()
+	cw.Indent()
 	return cw
 }
 
 func (cw *CodeWriter) CloseBrace() *CodeWriter {
-	cw.Untab()
+	cw.Unindent()
 	cw.Lines("}")
 	return cw
 }

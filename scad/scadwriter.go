@@ -9,12 +9,11 @@ import (
 
 	"github.com/k0kubun/pp/v3"
 	"github.com/mattolenik/svg2scad/std"
-	"github.com/mattolenik/svg2scad/std/strs"
 	"github.com/mattolenik/svg2scad/svg"
 	"github.com/mattolenik/svg2scad/svg/ast"
 )
 
-const cursor = "cursor"
+const CURSOR = "cursor"
 
 type SCADWriter struct {
 	SplineSteps int
@@ -135,15 +134,13 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 		if node.Relative {
 			node.Coord = node.Coord.Add(state.lastPoint())
 		}
-		cw.Linef("let(%s = %s + %v,", cursor, cursor, node.Coord)
+		cw.Linef("let(%s = %s + %v)", CURSOR, CURSOR, node.Coord)
 		state.addPoint(node.Coord)
 		return nil, nil
 
 	case ast.CommandList:
-		coords := []any{cursor}
-		curveVars := []string{}
-		lines := []string{}
-		for i, child := range node {
+		firstCoord := false
+		for _, child := range node {
 			r, err := sw.walk(cw, child, state)
 			if err != nil {
 				return nil, fmt.Errorf("failed building curve: %w", err)
@@ -153,28 +150,21 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 			}
 			switch r := r.(type) {
 			case ast.Coords:
-				varName := fmt.Sprintf("c%03d", i)
-				curveVars = append(curveVars, varName)
-				cw.Linef("%s = %v,", varName, r)
+				if !firstCoord {
+					firstCoord = true
+					cw.Linef("let(curve = [ %s, ", CURSOR)
+					cw.Indent()
+				}
+				cw.Linef("%#v,", r)
 				state.addPoint(r[len(r)-1])
-
-			case string:
-				lines = append(lines, r)
-
-			case []string:
-				lines = append(lines, r...)
-
 			default:
 				return nil, fmt.Errorf("type %v is not supported", reflect.TypeOf(r))
 			}
 		}
-		for _, varName := range curveVars {
-			idx := func(i int) string { return fmt.Sprintf("%s[%d]", varName, i) }
-			coords = append(coords, idx(0), idx(1), idx(2))
-		}
-		cw.Linef("curve = %s)", strs.Bracketed(coords))
-		cw.Linef("let(path = bezpath_curve(curve, splinesteps=%d))", sw.SplineSteps)
-		cw.Lines(lines...)
+		cw.Unindent()
+		cw.Lines("],")
+
+		cw.Linef("path = bezpath_curve(curve, splinesteps = %d))", sw.SplineSteps)
 
 	case *ast.CubicBezier:
 		if node.Relative {
@@ -195,9 +185,9 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 
 	case *ast.Path:
 		node.Name = state.pathID
-		cw.Linef("function %s(%s) =", node.Name, cursor)
-		cw.Tab()
-		defer cw.Untab()
+		cw.Linef("function %s(%s) =", node.Name, CURSOR)
+		cw.Indent()
+		defer cw.Unindent()
 		defer state.addFunction(node)
 		return sw.walk(cw, node.Children, state)
 
@@ -215,6 +205,6 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 	default:
 		return nil, fmt.Errorf("unsupported command: %q", reflect.TypeOf(node))
 	}
-	cw.Lines("    path;")
+	cw.Tab().Lines("path;")
 	return nil, nil
 }
