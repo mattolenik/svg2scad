@@ -14,21 +14,13 @@ import (
 	"github.com/mattolenik/svg2scad/svg/ast"
 )
 
+const cursor = "cursor"
+
 type SCADWriter struct {
-	StrokeWidth int
 	SplineSteps int
-	Cursor      string
 	nextID      int
 }
 
-func NewSCADWriter(outDir string) *SCADWriter {
-	return &SCADWriter{
-		StrokeWidth: 2,
-		SplineSteps: 32,
-		Cursor:      "cursor",
-		nextID:      0,
-	}
-}
 func (sw *SCADWriter) id() int {
 	id := sw.nextID
 	sw.nextID++
@@ -129,12 +121,12 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 	switch node := node.(type) {
 
 	case *ast.MoveTo:
-		state.lastPoint = sw.Cursor
-		cw.Linef("let(%s = %s + %v,", sw.Cursor, sw.Cursor, node.Coord)
+		state.lastPoint = cursor
+		cw.Linef("let(%s = %s + %v,", cursor, cursor, node.Coord)
 		return nil, nil
 
 	case ast.CommandList:
-		coords := []any{sw.Cursor}
+		coords := []any{cursor}
 		curveVars := []string{}
 		lines := []string{}
 		for i, child := range node {
@@ -177,7 +169,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 
 	case *ast.Path:
 		node.Name = state.pathID
-		cw.Linef("function %s(%s) =", node.Name, sw.Cursor)
+		cw.Linef("function %s(%s) =", node.Name, cursor)
 		cw.Tab()
 		defer cw.Untab()
 		defer state.addFunction(node)
