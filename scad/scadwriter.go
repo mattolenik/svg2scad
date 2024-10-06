@@ -39,14 +39,20 @@ func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, outDir, filename string) error {
 		return fmt.Errorf("couldn't create output .scad file %q: %w", outPath, err)
 	}
 	defer file.Close()
-	return sw.ConvertSVGToSCAD(svg, file)
+	err = sw.ConvertSVGToSCAD(svg, file)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(filepath.Join(outDir, "svgsupport.scad"), []byte(SupportingFile), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write support file: %w", err)
+	}
+	return nil
 }
 
 func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 	cw := ast.NewCodeWriter()
-	cw.Lines(DefaultImports...)
-	cw.BlankLine()
-	cw.Lines(Functions...)
+	cw.Lines(Imports...)
 	cw.BlankLine()
 
 	pathFunctions := []string{}
@@ -100,9 +106,6 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 			).
 			CloseBrace()
 		cw.CloseBrace()
-	}
-	for _, module := range pathFunctions {
-		cw.Linef("%s(100);", module)
 	}
 	return cw.Write(output)
 }

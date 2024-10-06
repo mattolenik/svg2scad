@@ -12,20 +12,20 @@ import (
 )
 
 func main() {
-	if err := mainE(); err != nil {
+	if err := mainE(os.Args[1:]); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func mainE() error {
+func mainE(args []string) error {
 	sw := scad.SCADWriter{}
 	help := flag.Bool("help", false, "Show help screen")
 	outDir := flag.String("out", "./scad", "Output directory for .scad files")
 	//watch := flag.Bool("watch", false, "watch for changes to the .svg files and refresh .scad files automatically")
 	flag.IntVar(&sw.SplineSteps, "detail", 32, "The number of spline steps, a higher value results in a smoother shape. An excessive value may cause problems.")
 	flag.BoolVar(&log.Debug, "debug", false, "Print debug/tracing info, for development use")
-	flag.Parse()
+	flag.CommandLine.Parse(args)
 
 	svgFiles := flag.Args()
 
