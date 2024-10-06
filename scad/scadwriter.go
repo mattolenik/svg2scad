@@ -10,7 +10,6 @@ import (
 
 	"github.com/mattolenik/svg2scad/files"
 	"github.com/mattolenik/svg2scad/log"
-	"github.com/mattolenik/svg2scad/std"
 	"github.com/mattolenik/svg2scad/svg"
 	"github.com/mattolenik/svg2scad/svg/ast"
 )
@@ -18,32 +17,21 @@ import (
 type SCADWriter struct {
 	SplineSteps   int
 	PrintExamples bool
-	nextID        int
-	docName       string
-	OutPath       string
 }
 
-func (sw *SCADWriter) id() int {
-	id := sw.nextID
-	sw.nextID++
-	return id
+func id(p *int) int {
+	*p++
+	return *p
 }
 
 func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, outDir, filename string) error {
-	if filename == "" {
-		ext := filepath.Ext(svg.Filename)
-		filename = svg.Filename[:len(svg.Filename)-len(ext)] + ".scad"
-	} else {
-		filename = std.EnsureSuffix(filename, ".scad")
-	}
-	sw.docName = svg.Filename
-	sw.OutPath = filepath.Join(outDir, filename)
-	file, err := os.Create(sw.OutPath)
+	outPath := filepath.Join(outDir, filename)
+	writer, err := os.Create(outPath)
 	if err != nil {
-		return fmt.Errorf("couldn't create output .scad file %q: %w", sw.OutPath, err)
+		return fmt.Errorf("couldn't create output .scad file %q: %w", outPath, err)
 	}
-	defer file.Close()
-	err = sw.ConvertSVGToSCAD(svg, file)
+	defer writer.Close()
+	err = sw.ConvertSVGToSCAD(svg, writer, outPath)
 	if err != nil {
 		return err
 	}
@@ -54,7 +42,7 @@ func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, outDir, filename string) error {
 	return nil
 }
 
-func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
+func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer, outPath string) error {
 	cw := ast.NewCodeWriter()
 	cw.Lines(Imports...)
 	cw.BlankLine()
@@ -62,11 +50,12 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 	pathNames := []string{}
 
 	ids := map[string]int{} // for tracking path IDs in the loop below
+	uniq := 0
 
 	for _, path := range svg.Paths {
 		if path.ID == "" {
 			// Give unnamed paths a default name
-			path.ID = fmt.Sprintf("path_%d", sw.id())
+			path.ID = fmt.Sprintf("path_%d", id(&uniq))
 		} else {
 			// Make sure path.ID is fully unique. There shouldn't be multiple <path> elements in the
 			// SVG with the same ID, but if there are, they will be renamed with a numerical suffix.
@@ -117,10 +106,9 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 	log.Userf("Converted curves: %s", strings.Join(pathNames, ", "))
 	if sw.PrintExamples {
 		log.Userf("\n  Usage, assuming your .scad file is in the current folder:\n")
-		log.Userf("  include <%s>", sw.OutPath)
-		previewName := pathNames[0]
-		log.Userf("  %s(100);  // get a 3D object, your path extruded by 100mm", previewName)
-		log.Userf("  %s();     // get a 2D path", previewName)
+		log.Userf("  include <%s>", outPath)
+		log.Userf("  %s(100);  // get a 3D object, your path extruded by 100mm", pathNames[0])
+		log.Userf("  %s();     // get a 2D path", pathNames[0])
 	}
 	return cw.Write(output)
 }

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/mattolenik/svg2scad/files"
 	"github.com/mattolenik/svg2scad/log"
@@ -52,11 +53,14 @@ func mainE(args []string) error {
 		if err != nil {
 			return fmt.Errorf("the SVG file %q could not be read: %w", file, err)
 		}
-		err = sw.ConvertSVG(svg, *outDir, "")
+
+		ext := filepath.Ext(svg.Filename)
+		filename := svg.Filename[:len(svg.Filename)-len(ext)] + ".scad"
+		err = sw.ConvertSVG(svg, *outDir, filename)
 		if err != nil {
 			return fmt.Errorf("the SVG file %q could not be converted: %w", file, err)
 		}
-		log.Userf("%s → %s\n", file, sw.OutPath)
+		log.Userf("%s → %s\n", file, filename)
 	}
 
 	return nil
