@@ -103,12 +103,13 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer, outPath s
 			CloseBrace()
 		cw.CloseBrace()
 	}
-	log.Userf("Converted curves: %s", strings.Join(pathNames, ", "))
+	log.Userf("curves: %s", strings.Join(pathNames, ", "))
 	if sw.PrintExamples {
 		log.Userf("\n  Usage, assuming your .scad file is in the current folder:\n")
 		log.Userf("  include <%s>", outPath)
 		log.Userf("  %s(100);  // get a 3D object, your path extruded by 100mm", pathNames[0])
 		log.Userf("  %s();     // get a 2D path", pathNames[0])
+		log.Userf("")
 	}
 	return cw.Write(output)
 }
