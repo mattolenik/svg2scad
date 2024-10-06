@@ -16,10 +16,11 @@ import (
 )
 
 type SCADWriter struct {
-	SplineSteps int
-	nextID      int
-	docName     string
-	outPath     string
+	SplineSteps   int
+	PrintExamples bool
+	nextID        int
+	docName       string
+	OutPath       string
 }
 
 func (sw *SCADWriter) id() int {
@@ -36,10 +37,10 @@ func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, outDir, filename string) error {
 		filename = std.EnsureSuffix(filename, ".scad")
 	}
 	sw.docName = svg.Filename
-	sw.outPath = filepath.Join(outDir, filename)
-	file, err := os.Create(sw.outPath)
+	sw.OutPath = filepath.Join(outDir, filename)
+	file, err := os.Create(sw.OutPath)
 	if err != nil {
-		return fmt.Errorf("couldn't create output .scad file %q: %w", sw.outPath, err)
+		return fmt.Errorf("couldn't create output .scad file %q: %w", sw.OutPath, err)
 	}
 	defer file.Close()
 	err = sw.ConvertSVGToSCAD(svg, file)
@@ -113,12 +114,14 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 			CloseBrace()
 		cw.CloseBrace()
 	}
-	log.Userf("Converted these curves from %s:\n  %v", sw.docName, strings.Join(pathNames, ", "))
-	log.Userf("\n  Usage, assuming your .scad file is in the current folder:\n")
-	log.Userf("    include <%s>", sw.outPath)
-	previewName := pathNames[0]
-	log.Userf("    %s(100);  // get a 3D object, your path extruded by 100mm", previewName)
-	log.Userf("    %s();     // get a 2D path", previewName)
+	log.Userf("Converted curves: %s", strings.Join(pathNames, ", "))
+	if sw.PrintExamples {
+		log.Userf("\n  Usage, assuming your .scad file is in the current folder:\n")
+		log.Userf("  include <%s>", sw.OutPath)
+		previewName := pathNames[0]
+		log.Userf("  %s(100);  // get a 3D object, your path extruded by 100mm", previewName)
+		log.Userf("  %s();     // get a 2D path", previewName)
+	}
 	return cw.Write(output)
 }
 

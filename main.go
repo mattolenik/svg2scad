@@ -26,6 +26,7 @@ func mainE(args []string) error {
 	flag.IntVar(&sw.SplineSteps, "detail", 32, "Higher values create smoother curves, excessive values may cause issues")
 	flag.BoolVar(&log.Debug, "debug", false, "Print debug/tracing info, for development use")
 	flag.BoolVar(&log.Quiet, "quiet", false, "Quiet mode, don't print info messages, only errors")
+	flag.BoolVar(&sw.PrintExamples, "example", false, "Print an example showing how to use your shapes")
 
 	flag.CommandLine.Parse(args)
 
@@ -55,7 +56,7 @@ func mainE(args []string) error {
 		if err != nil {
 			return fmt.Errorf("the SVG file %q could not be converted: %w", file, err)
 		}
-		log.Userf("\n")
+		log.Userf("%s → %s\n", file, sw.OutPath)
 	}
 
 	return nil
