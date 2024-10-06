@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mattolenik/svg2scad/log"
 	"github.com/mattolenik/svg2scad/scad"
 	"github.com/mattolenik/svg2scad/svg"
 )
@@ -17,17 +18,25 @@ func main() {
 }
 
 func mainE() error {
-
 	sw := scad.SCADWriter{}
-	outDir := flag.String("out", "./curves", "Output directory for .scad files")
+	help := flag.Bool("help", false, "Show help screen")
+	outDir := flag.String("out", "./scad", "Output directory for .scad files")
 	//watch := flag.Bool("watch", false, "watch for changes to the .svg files and refresh .scad files automatically")
 	flag.IntVar(&sw.SplineSteps, "detail", 32, "The number of spline steps, a higher value results in a smoother shape. An excessive value may cause problems.")
+	flag.BoolVar(&log.Debug, "debug", false, "Print debug/tracing info, for development use")
 	flag.Parse()
 
 	svgFiles := flag.Args()
 
+	if *help {
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	if len(svgFiles) == 0 {
-		return fmt.Errorf("please provide one or more .svg files to convert")
+		flag.Usage()
+		log.Errorf("please provide one or more .svg files to convert")
+		os.Exit(1)
 	}
 
 	if err := os.MkdirAll(*outDir, 0755); err != nil {

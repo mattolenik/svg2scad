@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/k0kubun/pp/v3"
+	"github.com/mattolenik/svg2scad/log"
 	"github.com/mattolenik/svg2scad/std"
 	"github.com/mattolenik/svg2scad/svg"
 	"github.com/mattolenik/svg2scad/svg/ast"
@@ -79,7 +79,6 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 		); err != nil {
 			return fmt.Errorf("failed to generate OpenSCAD code: %w", err)
 		}
-		pp.Println(tree)
 	}
 	cw.BlankLine()
 	for _, fn := range pathFunctions {
@@ -127,7 +126,7 @@ func (ws *walkState) lastPoint() ast.Coord {
 }
 
 func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val any, err error) {
-	fmt.Println(reflect.TypeOf(node))
+	log.Debugf(reflect.TypeOf(node).String())
 	switch node := node.(type) {
 
 	case *ast.MoveTo:
