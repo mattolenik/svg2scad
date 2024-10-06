@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/mattolenik/svg2scad/files"
 	"github.com/mattolenik/svg2scad/log"
@@ -14,11 +15,11 @@ import (
 	"github.com/mattolenik/svg2scad/svg/ast"
 )
 
-const CURSOR = "cursor"
-
 type SCADWriter struct {
 	SplineSteps int
 	nextID      int
+	docName     string
+	outPath     string
 }
 
 func (sw *SCADWriter) id() int {
@@ -34,10 +35,11 @@ func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, outDir, filename string) error {
 	} else {
 		filename = std.EnsureSuffix(filename, ".scad")
 	}
-	outPath := filepath.Join(outDir, filename)
-	file, err := os.Create(outPath)
+	sw.docName = svg.Filename
+	sw.outPath = filepath.Join(outDir, filename)
+	file, err := os.Create(sw.outPath)
 	if err != nil {
-		return fmt.Errorf("couldn't create output .scad file %q: %w", outPath, err)
+		return fmt.Errorf("couldn't create output .scad file %q: %w", sw.outPath, err)
 	}
 	defer file.Close()
 	err = sw.ConvertSVGToSCAD(svg, file)
@@ -56,16 +58,17 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 	cw.Lines(Imports...)
 	cw.BlankLine()
 
-	pathFunctions := []string{}
-	appendFunction := func(m *ast.Path) {
-		pathFunctions = append(pathFunctions, m.Name)
-	}
+	pathNames := []string{}
 
-	ids := map[string]int{}
+	ids := map[string]int{} // for tracking path IDs in the loop below
+
 	for _, path := range svg.Paths {
 		if path.ID == "" {
+			// Give unnamed paths a default name
 			path.ID = fmt.Sprintf("path_%d", sw.id())
 		} else {
+			// Make sure path.ID is fully unique. There shouldn't be multiple <path> elements in the
+			// SVG with the same ID, but if there are, they will be renamed with a numerical suffix.
 			count, exists := ids[path.ID]
 			if !exists {
 				ids[path.ID] = 1
@@ -78,22 +81,24 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse path from SVG %q: %w", path, err)
 		}
-		if _, err := sw.walk(cw, tree,
-			&walkState{
-				addFunction: appendFunction,
-				pathID:      path.ID,
-			},
-		); err != nil {
+
+		state := walkState{
+			paths:  []string{},
+			pathID: path.ID,
+		}
+		_, err = sw.walk(cw, tree, &state)
+		if err != nil {
 			return fmt.Errorf("failed to generate OpenSCAD code: %w", err)
 		}
+		pathNames = append(pathNames, state.paths...)
 	}
 	cw.BlankLine()
-	for _, fn := range pathFunctions {
+	for _, name := range pathNames {
 		cw.BlankLine()
-		cw.Linef("module %s(depth=0, anchor, spin, orient)", fn)
+		cw.Linef("module %s(depth=0, anchor, spin, orient)", name)
 		cw.OpenBrace().Linef(
-			"p = %s([ 0, 0 ]);", fn).Linef(
-			"exts = %s(p);", extentsFunctionName).Lines(
+			"p = %s([ 0, 0 ]);", name).Linef(
+			"exts = %s(p);", EXTENTS).Lines(
 			"width = exts[0][0] - exts[1][0];",
 			"height = exts[0][1] - exts[1][1];",
 			"two_d = depth == 0;",
@@ -108,13 +113,19 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 			CloseBrace()
 		cw.CloseBrace()
 	}
+	log.Userf("Converted these curves from %s:\n  %v", sw.docName, strings.Join(pathNames, ", "))
+	log.Userf("\n  Usage, assuming your .scad file is in the current folder:\n")
+	log.Userf("    include <%s>", sw.outPath)
+	previewName := pathNames[0]
+	log.Userf("    %s(100);  // get a 3D object, your path extruded by 100mm", previewName)
+	log.Userf("    %s();     // get a 2D path", previewName)
 	return cw.Write(output)
 }
 
 type walkState struct {
-	addFunction func(*ast.Path)
-	pathID      string
-	points      []ast.Coord
+	paths  []string
+	pathID string
+	points []ast.Coord
 }
 
 func (ws *walkState) addPoint(p ast.Coord) {
@@ -191,7 +202,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 		cw.Linef("function %s(%s) =", node.Name, CURSOR)
 		cw.Indent()
 		defer cw.Unindent()
-		defer state.addFunction(node)
+		defer func() { state.paths = append(state.paths, node.Name) }()
 		return sw.walk(cw, node.Children, state)
 
 	case []any:

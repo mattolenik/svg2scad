@@ -21,10 +21,12 @@ func main() {
 func mainE(args []string) error {
 	sw := scad.SCADWriter{}
 	help := flag.Bool("help", false, "Show help screen")
-	outDir := flag.String("out", "./scad", "Output directory for .scad files")
+	outDir := flag.String("out", "./svg-scad", "Output directory for .scad files")
 	//watch := flag.Bool("watch", false, "watch for changes to the .svg files and refresh .scad files automatically")
-	flag.IntVar(&sw.SplineSteps, "detail", 32, "The number of spline steps, a higher value results in a smoother shape. An excessive value may cause problems.")
+	flag.IntVar(&sw.SplineSteps, "detail", 32, "Higher values create smoother curves, excessive values may cause issues")
 	flag.BoolVar(&log.Debug, "debug", false, "Print debug/tracing info, for development use")
+	flag.BoolVar(&log.Quiet, "quiet", false, "Quiet mode, don't print info messages, only errors")
+
 	flag.CommandLine.Parse(args)
 
 	svgFiles := flag.Args()
@@ -53,6 +55,7 @@ func mainE(args []string) error {
 		if err != nil {
 			return fmt.Errorf("the SVG file %q could not be converted: %w", file, err)
 		}
+		log.Userf("\n")
 	}
 
 	return nil
