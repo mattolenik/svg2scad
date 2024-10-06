@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mattolenik/svg2scad/file"
 	"github.com/mattolenik/svg2scad/log"
 	"github.com/mattolenik/svg2scad/scad"
 	"github.com/mattolenik/svg2scad/svg"
@@ -39,7 +40,7 @@ func mainE() error {
 		os.Exit(1)
 	}
 
-	if err := os.MkdirAll(*outDir, 0755); err != nil {
+	if err := file.CreateDirIfNotExists(*outDir); err != nil {
 		return fmt.Errorf("couldn't create output directory %q: %w", *outDir, err)
 	}
 
