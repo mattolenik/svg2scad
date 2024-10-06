@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 
+	"github.com/mattolenik/svg2scad/files"
 	"github.com/mattolenik/svg2scad/log"
 	"github.com/mattolenik/svg2scad/std"
 	"github.com/mattolenik/svg2scad/svg"
@@ -43,7 +44,7 @@ func (sw *SCADWriter) ConvertSVG(svg *svg.SVG, outDir, filename string) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(filepath.Join(outDir, "svgsupport.scad"), []byte(SupportingFile), 0644)
+	err = files.WriteFileWithDir(filepath.Join(outDir, LibSubdir, LibFilename), []byte(LibFileData))
 	if err != nil {
 		return fmt.Errorf("failed to write support file: %w", err)
 	}
@@ -91,8 +92,8 @@ func (sw *SCADWriter) ConvertSVGToSCAD(svg *svg.SVG, output io.Writer) error {
 		cw.BlankLine()
 		cw.Linef("module %s(depth=0, anchor, spin, orient)", fn)
 		cw.OpenBrace().Linef(
-			"p = %s([ 0, 0 ]);", fn).Lines(
-			"exts = extents(p);",
+			"p = %s([ 0, 0 ]);", fn).Linef(
+			"exts = %s(p);", extentsFunctionName).Lines(
 			"width = exts[0][0] - exts[1][0];",
 			"height = exts[0][1] - exts[1][1];",
 			"two_d = depth == 0;",
