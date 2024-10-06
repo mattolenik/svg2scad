@@ -77,6 +77,13 @@ type QuadraticBezier struct {
 
 type ClosePath struct{}
 
+type Color struct {
+	R int
+	G int
+	B int
+	A int
+}
+
 type Path struct {
 	Name     string
 	Children any

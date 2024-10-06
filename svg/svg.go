@@ -19,8 +19,9 @@ type SVG struct {
 }
 
 type Path struct {
-	ID string `xml:"id,attr"`
-	D  string `xml:"d,attr"`
+	ID    string `xml:"id,attr"`
+	D     string `xml:"d,attr"`
+	Style string `xml:"style,attr"`
 }
 
 func ReadSVGFromFile(path string) (*SVG, error) {

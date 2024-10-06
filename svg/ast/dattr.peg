@@ -7,8 +7,7 @@ import (
 )
 
 func isRelative(text []byte) (bool, error) {
-    s := string(text)
-    return strs.IsLower(s), nil
+    return strs.IsLower(string(text)), nil
 }
 }
 
@@ -20,16 +19,7 @@ Seq <- _ seq:(Curve) {
     return seq, nil
 }
 
-// MoveSequence <- _ move:Move _ rest:Seq* {
-//     if mv, ok := move.(*MoveTo); ok {
-//         mv.Children = rest.([]any)
-//         return mv, nil
-//     }
-//     return nil, fmt.Errorf("unexpected condition")
-// }
-
 Curve <- cmds:Command+ {
-    // return &Curve{Children: std.TypedSlice[any](cmds)}, nil
     return CommandList(std.TypedSlice[any](cmds)), nil
 }
 
@@ -39,65 +29,62 @@ Command <- _ val:(Move / LineTo / Bezier / ClosePath) {
 
 Move <- MoveTo / MoveH / MoveV
 
-MoveTo <- rel:m _ coord:Coord {
+MoveTo <- rel:move _ coord:Coord {
     return &MoveTo{Coord: coord.(Coord), Relative: rel.(bool)}, nil
 }
 
-MoveH <- rel:h _ val:Number {
+MoveH <- rel:moveh _ val:Number {
     return &MoveTo{Coord: Coord{val.(float64), 0}, Relative: rel.(bool)}, nil
 }
 
-MoveV <- rel:v _ val:Number {
+MoveV <- rel:movev _ val:Number {
     return &MoveTo{Coord: Coord{0, val.(float64)}, Relative: rel.(bool)}, nil
 }
 
-LineTo <- rel:l _ coord:Coord {
+LineTo <- rel:lineto _ coord:Coord {
     return &LineTo{Coord: coord.(Coord), Relative: rel.(bool)}, nil
 }
 
-ClosePath <- z {
+ClosePath <- val:('Z' / 'z') {
     return &ClosePath{}, nil
 }
 
 Bezier <- CubicBezier / QuadraticBezier
 
-CubicBezier <- rel:c _ c1:Coord _ c2:Coord _ c3:Coord {
+CubicBezier <- rel:curve _ c1:Coord _ c2:Coord _ c3:Coord {
     return &CubicBezier{Points: []Coord{c1.(Coord), c2.(Coord), c3.(Coord)}, Relative: rel.(bool)}, nil
 }
 
-QuadraticBezier <- q _ c1:Coord _ c2:Coord {
+QuadraticBezier <- qcurve _ c1:Coord _ c2:Coord {
     // return &QuadraticBezier{Points: []Coord{c1.(Coord), c2.(Coord)}}, nil
     return nil, fmt.Errorf("quadratic curves not implemented yet")
-}
-
-Number <- val:number {
-    return strconv.ParseFloat(string(c.text), 10)
 }
 
 Coord <- x:Number _ ','? _ y:Number {
     return Coord{x.(float64), y.(float64)}, nil
 }
 
+
+Number <- val:number {
+    return strconv.ParseFloat(string(c.text), 10)
+}
+
 number <- '-'? digit+ ('.' digit+)?
 
-m <- val:('M' / 'm') { return isRelative(c.text) }
+move <- val:('M' / 'm') { return isRelative(c.text) }
 
-l <- val:('L' / 'l') { return isRelative(c.text) }
+lineto <- val:('L' / 'l') { return isRelative(c.text) }
 
-c <- val:('C' / 'c') { return isRelative(c.text) }
+curve <- val:('C' / 'c') { return isRelative(c.text) }
 
-z <- val:('Z' / 'z') { return isRelative(c.text) }
+moveh <- val:('H' / 'h') { return isRelative(c.text) }
 
-h <- val:('H' / 'h') { return isRelative(c.text) }
+movev <- val:('V' / 'v') { return isRelative(c.text) }
 
-v <- val:('V' / 'v') { return isRelative(c.text) }
-
-q <- val:('Q' / 'q') { return isRelative(c.text) }
+qcurve <- val:('Q' / 'q') { return isRelative(c.text) }
 
 digit <- [0-9]
 
 _ "whitespace" <- [ \t\r\n]* {
     return nil, nil
 }
-
-_comma  <- ','
