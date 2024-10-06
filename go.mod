@@ -2,10 +2,7 @@ module github.com/mattolenik/svg2scad
 
 go 1.23
 
-require (
-	github.com/mna/pigeon v1.2.1
-	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
-)
+require github.com/mna/pigeon v1.2.1
 
 require (
 	golang.org/x/mod v0.17.0 // indirect
