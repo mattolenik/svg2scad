@@ -2,12 +2,12 @@
 package ast
 import (
     "unicode"
+    "strings"
     "github.com/mattolenik/svg2scad/std"
-    "github.com/mattolenik/svg2scad/std/strs"
 )
 
 func isRelative(text []byte) (bool, error) {
-    return strs.IsLower(string(text)), nil
+    return strings.ToLower(string(text)) == string(text), nil
 }
 }
 
@@ -34,11 +34,11 @@ MoveTo <- rel:move _ coord:Coord {
 }
 
 MoveH <- rel:moveh _ val:Number {
-    return &MoveTo{Coord: Coord{val.(float64), 0}, Relative: rel.(bool)}, nil
+    return &MoveTo{Coord: Coord{val.(string), "0"}, Relative: rel.(bool)}, nil
 }
 
 MoveV <- rel:movev _ val:Number {
-    return &MoveTo{Coord: Coord{0, val.(float64)}, Relative: rel.(bool)}, nil
+    return &MoveTo{Coord: Coord{"0", val.(string)}, Relative: rel.(bool)}, nil
 }
 
 LineTo <- rel:lineto _ coord:Coord {
@@ -61,12 +61,11 @@ QuadraticBezier <- qcurve _ c1:Coord _ c2:Coord {
 }
 
 Coord <- x:Number _ ','? _ y:Number {
-    return Coord{x.(float64), y.(float64)}, nil
+    return Coord{x.(string), y.(string)}, nil
 }
 
-
 Number <- val:number {
-    return strconv.ParseFloat(string(c.text), 10)
+    return string(c.text), nil
 }
 
 number <- '-'? digit+ ('.' digit+)?

@@ -140,7 +140,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 		if node.Relative {
 			node.Coord = node.Coord.Add(state.lastPoint())
 		}
-		cw.Linef("let(%s = %s + %v)", CURSOR, CURSOR, node.Coord)
+		cw.Linef("let(%s = %s + %v)", ast.Cursor, ast.Cursor, node.Coord)
 		state.addPoint(node.Coord)
 		return nil, nil
 
@@ -158,7 +158,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 			case ast.Coords:
 				if !firstCoord {
 					firstCoord = true
-					cw.Linef("let(curve = [ %s, ", CURSOR)
+					cw.Linef("let(curve = [ %s, ", ast.Cursor)
 					cw.Indent()
 				}
 				cw.Linef("%#v,", r)
@@ -182,7 +182,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 		if node.Relative {
 			node.Coord = node.Coord.Add(state.lastPoint())
 		}
-		// Convert to a curve
+		// Convert to a curve, it's easier to create the geometry in OpenSCAD as all bezier
 		return ast.Coords{node.Coord, node.Coord, node.Coord}, nil
 
 	case *ast.ClosePath:
@@ -191,7 +191,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 
 	case *ast.Path:
 		node.Name = state.pathID
-		cw.Linef("function %s(%s) =", node.Name, CURSOR)
+		cw.Linef("function %s(%s) =", node.Name, ast.Cursor)
 		cw.Indent()
 		defer cw.Unindent()
 		defer func() { state.paths = append(state.paths, node.Name) }()
