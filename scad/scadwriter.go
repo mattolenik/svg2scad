@@ -145,7 +145,7 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 		return nil, nil
 
 	case ast.CommandList:
-		firstCoord := false
+		curveCoords := []ast.Coords{}
 		for _, child := range node {
 			r, err := sw.walk(cw, child, state)
 			if err != nil {
@@ -156,16 +156,26 @@ func (sw *SCADWriter) walk(cw *ast.CodeWriter, node any, state *walkState) (val 
 			}
 			switch r := r.(type) {
 			case ast.Coords:
-				if !firstCoord {
-					firstCoord = true
-					cw.Linef("let(curve = [ %s, ", ast.Cursor)
-					cw.Indent()
-				}
-				cw.Linef("%#v,", r)
+				curveCoords = append(curveCoords, r)
 				state.addPoint(r[len(r)-1])
 			default:
 				return nil, fmt.Errorf("type %v is not supported", reflect.TypeOf(r))
 			}
+		}
+		cw.Linef("let(curve = [ %s, ", ast.Cursor)
+		cw.Indent()
+		colWidths := make([][2]int, 3)
+		for i, ws := range colWidths {
+			for c := range ws {
+				for _, r := range curveCoords {
+					if len(r[i][c]) > colWidths[i][c] {
+						colWidths[i][c] = len(r[i][c])
+					}
+				}
+			}
+		}
+		for _, coord := range curveCoords {
+			cw.Lines(coord.Columnized(colWidths) + ",")
 		}
 		cw.Unindent()
 		cw.Lines("],")

@@ -26,6 +26,17 @@ func (c Coord) Add(coord Coord) Coord {
 	return Coord{c[0] + coord[0], c[1] + coord[1]}
 }
 
+func (c Coord) ColumnWidths() [2]int {
+	return [2]int{len(c[0]), len(c[1])}
+}
+
+func (c Coord) Columnized(colWidths [2]int) string {
+	if len(c) != len(colWidths) {
+		panic(fmt.Errorf("cannot format coord of length %d using a width set of length %d", len(c), len(colWidths)))
+	}
+	return fmt.Sprintf("[ %*s, %*s ]", colWidths[0], c[0], colWidths[1], c[1])
+}
+
 var Cursor = Coord{"_", "_"} // Represents "cursor" that isn't a numeric value
 
 type Coords []Coord
@@ -56,6 +67,25 @@ func (c Coords) Add(coord Coord) Coords {
 		result[i] = Coord{fmt.Sprintf("%v + %v", cc[0], coord[0]), fmt.Sprintf("%v + %v", cc[1], coord[1])}
 	}
 	return result
+}
+
+func (c Coords) ColumnWidths() [][2]int {
+	result := make([][2]int, len(c))
+	for i, coord := range c {
+		result[i] = coord.ColumnWidths()
+	}
+	return result
+}
+
+func (c Coords) Columnized(colWidths [][2]int) string {
+	if len(c) != len(colWidths) {
+		panic(fmt.Errorf("cannot format coord set of length %d using a width set of length %d", len(c), len(colWidths)))
+	}
+	formattedCoords := make([]string, len(c))
+	for i, coord := range c {
+		formattedCoords[i] = coord.Columnized(colWidths[i])
+	}
+	return "[ " + strings.Join(formattedCoords, ", ") + " ]"
 }
 
 type MoveTo struct {
